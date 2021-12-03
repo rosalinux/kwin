@@ -6,10 +6,12 @@
 
 #include "libeisbackend.h"
 
+#include "abstract_output.h"
 #include "backends/libeis/libeis_logging.h"
 #include "device.h"
 #include "input.h"
 #include "main.h"
+#include "platform.h"
 #include "workspace.h"
 
 #include <QSocketNotifier>
@@ -81,44 +83,71 @@ void LibeisBackend::initialize()
 
     eis_log_set_priority(m_eis, EIS_LOG_PRIORITY_DEBUG);
     eis_log_set_handler(m_eis, Libeis::eis_log_handler);
+
+    connect(kwinApp()->platform(), &Platform::outputEnabled, this, [this] (AbstractOutput *output) {
+        for (const auto seat : m_seatToDevices.keys()) {
+            addDevice(seat, output);
+        }
+    });
 }
 
-Libeis::Device *LibeisBackend::createDevice(eis_seat *seat)
+void LibeisBackend::addDevice(eis_seat *seat, AbstractOutput *output)
 {
     auto client = eis_seat_get_client(seat);
     const char *clientName = eis_client_get_name(client);
     auto device = eis_seat_new_device(seat);
     auto inputDevice = new Libeis::Device(device);
     eis_device_set_user_data(device, inputDevice);
-    eis_device_configure_name(device, QByteArrayLiteral(" device").prepend(clientName));
-    eis_device_configure_capability(device, EIS_DEVICE_CAP_POINTER);
-    eis_device_configure_capability(device, EIS_DEVICE_CAP_POINTER_ABSOLUTE);
-    eis_device_configure_capability(device, EIS_DEVICE_CAP_KEYBOARD);
-    eis_device_configure_capability(device, EIS_DEVICE_CAP_TOUCH);
     // TODO do we need  keymaps?
 
-    // TODO multiple regions/devices per output
-    auto region = eis_device_new_region(device);
-    const QRect workspaceGeometry = workspace()->geometry();
-    eis_region_set_offset(region, workspaceGeometry.x(), workspaceGeometry.y());
-    eis_region_set_size(region, workspaceGeometry.width(), workspaceGeometry.height());
-    eis_region_add(region);
-    eis_region_unref(region);
-    connect(workspace(), &Workspace::geometryChanged, inputDevice, [this, inputDevice] {
-        auto seat = eis_device_get_seat(inputDevice->eisDevice());
-        eis_device_remove(inputDevice->eisDevice());
-        Q_EMIT deviceRemoved(inputDevice);
-        inputDevice->deleteLater();
-        auto device = createDevice(seat);
-        m_seatToDevice.insert(seat, device);
-        Q_EMIT deviceAdded(device);
-    });
+    if (output) {
+        // Ab absolute device
+        const QByteArray name = clientName + QByteArrayLiteral(" absolute device on ") + output->name().toUtf8();
+        eis_device_configure_name(device, name);
+        eis_device_configure_capability(device, EIS_DEVICE_CAP_POINTER_ABSOLUTE);
+        eis_device_configure_capability(device, EIS_DEVICE_CAP_TOUCH);
+        auto region = eis_device_new_region(device);
+        const QRect outputGeometry = output->geometry();
+        eis_region_set_offset(region, outputGeometry.x(), outputGeometry.y());
+        eis_region_set_size(region, outputGeometry.width(), outputGeometry.height());
+        // TODO Do we need this if our region is in logical coordinates?
+        eis_region_set_physical_scale(region, output->scale());
+        eis_region_add(region);
+        eis_region_unref(region);
+        connect(output, &AbstractOutput::enabledChanged, inputDevice, [this, inputDevice, seat] {
+            eis_device_remove(inputDevice->eisDevice());
+            m_seatToDevices[seat].removeOne(inputDevice);
+            Q_EMIT deviceRemoved(inputDevice);
+            inputDevice->deleteLater();
+        });
+        connect(output, &QObject::destroyed, inputDevice, [this, inputDevice, seat] {
+            eis_device_remove(inputDevice->eisDevice());
+            m_seatToDevices[seat].removeOne(inputDevice);
+            Q_EMIT deviceRemoved(inputDevice);
+            inputDevice->deleteLater();
+        });
+        connect(output, &AbstractOutput::geometryChanged, inputDevice, [this, inputDevice, seat, output] {
+            // regions on devices have to be static => recreate the device
+            eis_device_remove(inputDevice->eisDevice());
+            m_seatToDevices[seat].removeOne(inputDevice);
+            Q_EMIT deviceRemoved(inputDevice);
+            inputDevice->deleteLater();
+            addDevice(eis_device_get_seat(inputDevice->eisDevice()), output);
+        });
+    } else {
+        // a relative device
+        const QByteArray name = clientName + QByteArrayLiteral(" relative pointer & keyboard");
+        eis_device_configure_name(device, name);
+        eis_device_configure_capability(device, EIS_DEVICE_CAP_POINTER);
+        eis_device_configure_capability(device, EIS_DEVICE_CAP_KEYBOARD);
+    }
+
+    m_seatToDevices[seat].push_back(inputDevice);
+    Q_EMIT deviceAdded(inputDevice);
 
     eis_device_add(device);
     eis_device_resume(device);
     eis_device_unref(device);
-
-    return inputDevice;
 }
 
 void LibeisBackend::handleEvents()
@@ -143,7 +172,7 @@ void LibeisBackend::handleEvents()
             eis_seat_configure_capability(seat, EIS_DEVICE_CAP_KEYBOARD);
             eis_seat_configure_capability(seat, EIS_DEVICE_CAP_TOUCH);
             eis_seat_add(seat);
-            eis_seat_unref(seat);
+            m_seatToDevices.insert(seat, {});
             qCDebug(KWIN_EIS) << "New client" << clientName << "pid:" << pid;
             break;
         }
@@ -161,25 +190,31 @@ void LibeisBackend::handleEvents()
         }
         case EIS_EVENT_SEAT_BIND: {
             auto seat = eis_event_get_seat(event);
-            auto device = createDevice(seat);
-            m_seatToDevice.insert(seat, device);
-            Q_EMIT deviceAdded(device);
+            addDevice(seat, nullptr);
+            for (const auto output : kwinApp()->platform()->enabledOutputs()) {
+                addDevice(seat, output);
+            }
             qCDebug(KWIN_EIS) << "Client" << eis_client_get_name(eis_event_get_client(event)) << "bound to seat" << eis_seat_get_name(seat);
             break;
         }
         case EIS_EVENT_SEAT_UNBIND: {
             auto seat = eis_event_get_seat(event);
             qCDebug(KWIN_EIS) << "Client" << eis_client_get_name(eis_event_get_client(event)) << "unbound from seat" << eis_seat_get_name(seat);
-            auto device = m_seatToDevice.take(seat);
-            Q_EMIT deviceRemoved(device);
-            device->deleteLater();
+            auto devices = m_seatToDevices.take(seat);
+            for (const auto device : devices) {
+                eis_device_remove(device->eisDevice());
+                Q_EMIT deviceRemoved(device);
+                device->deleteLater();
+            }
             eis_seat_remove(seat);
+            eis_seat_unref(seat);
             break;
         }
         case EIS_EVENT_DEVICE_CLOSED: {
             auto device = eventDevice(event);
             qCDebug(KWIN_EIS) << "Device" << device->name() << "closed by client";
             eis_device_remove(device->eisDevice());
+            m_seatToDevices[eis_device_get_seat(device->eisDevice())];
             Q_EMIT deviceRemoved(device);
             device->deleteLater();
             break;

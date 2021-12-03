@@ -15,6 +15,7 @@ struct eis_seat;
 
 namespace KWin
 {
+class AbstractOutput;
 namespace Libeis
 {
 class Device;
@@ -30,9 +31,9 @@ public:
 
 private:
     void handleEvents();
-    Libeis::Device *createDevice(eis_seat *seat);
+    void addDevice (eis_seat *seat, AbstractOutput *output);
     eis *m_eis = nullptr;
-    QMap<eis_seat*, Libeis::Device*> m_seatToDevice;
+    QMap<eis_seat*, QVector<Libeis::Device*>> m_seatToDevices;
 };
 
 }
