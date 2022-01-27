@@ -54,6 +54,7 @@ Options::Options(QObject *parent)
     , m_hideUtilityWindowsForInactive(false)
     , m_xwaylandCrashPolicy(Options::defaultXwaylandCrashPolicy())
     , m_xwaylandMaxCrashCount(Options::defaultXwaylandMaxCrashCount())
+    , m_xwaylandEavesdrops(Options::defaultXwaylandEavesdrops())
     , m_latencyPolicy(Options::defaultLatencyPolicy())
     , m_renderTimeEstimator(Options::defaultRenderTimeEstimator())
     , m_compositingMode(Options::defaultCompositingMode())
@@ -143,6 +144,15 @@ void Options::setXwaylandMaxCrashCount(int maxCrashCount)
     }
     m_xwaylandMaxCrashCount = maxCrashCount;
     Q_EMIT xwaylandMaxCrashCountChanged();
+}
+
+void Options::setXwaylandEavesdrops(bool eavesdrops)
+{
+    if (m_xwaylandEavesdrops == eavesdrops) {
+        return;
+    }
+    m_xwaylandEavesdrops = eavesdrops;
+    Q_EMIT xwaylandEavesdropsChanged();
 }
 
 void Options::setClickRaise(bool clickRaise)
@@ -765,6 +775,7 @@ void Options::syncFromKcfgc()
     setFocusStealingPreventionLevel(m_settings->focusStealingPreventionLevel());
     setXwaylandCrashPolicy(m_settings->xwaylandCrashPolicy());
     setXwaylandMaxCrashCount(m_settings->xwaylandMaxCrashCount());
+    setXwaylandEavesdrops(m_settings->xwaylandEavesdrops());
 
 #ifdef KWIN_BUILD_DECORATIONS
     setPlacement(m_settings->placement());

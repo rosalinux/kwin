@@ -23,12 +23,18 @@
 #include "wayland_server.h"
 #include "xwayland_logging.h"
 #include "x11eventfilter.h"
+#include "workspace.h"
+#include "abstract_client.h"
 
 #include "xwaylandsocket.h"
 
 #include <KLocalizedString>
 #include <KNotification>
 #include <KSelectionOwner>
+
+#include <KWaylandServer/keyboard_interface.h>
+#include <KWaylandServer/seat_interface.h>
+#include <KWaylandServer/surface_interface.h>
 
 #include <QAbstractEventDispatcher>
 #include <QDataStream>
@@ -439,6 +445,40 @@ void Xwayland::handleXwaylandReady()
 
     delete m_xrandrEventsFilter;
     m_xrandrEventsFilter = new XrandrEventFilter(this);
+
+    refreshEavesdropping();
+    connect(options, &Options::xwaylandEavesdropsChanged, this, &Xwayland::refreshEavesdropping);
+    connect(workspace(), &Workspace::clientActivated, this, &Xwayland::refreshEavesdropping);
+}
+
+bool Xwayland::shouldEavesdrop() const
+{
+    if (!options->xwaylandEavesdrops()) {
+        return false;
+    }
+
+    AbstractClient *window = workspace()->activeClient();
+    if (window && window->isLockScreen()) {
+        return false;
+    }
+    return true;
+}
+
+void Xwayland::refreshEavesdropping()
+{
+    if (!waylandServer()->seat()->keyboard()) {
+        return;
+    }
+
+    if (options->xwaylandEavesdrops() == waylandServer()->seat()->keyboard()->containsAdditionalClient(waylandServer()->xWaylandConnection())) {
+        return;
+    }
+
+    if (options->xwaylandEavesdrops()) {
+        waylandServer()->seat()->keyboard()->addAdditionalClient(waylandServer()->xWaylandConnection());
+    } else {
+        waylandServer()->seat()->keyboard()->removeAdditionalClient(waylandServer()->xWaylandConnection());
+    }
 }
 
 void Xwayland::updatePrimary(AbstractOutput *primaryOutput)

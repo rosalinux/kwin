@@ -251,6 +251,9 @@ public:
     int xwaylandMaxCrashCount() const {
         return m_xwaylandMaxCrashCount;
     }
+    bool xwaylandEavesdrops() const {
+        return m_xwaylandEavesdrops;
+    }
 
     /**
      * Whether clicking on a window raises it in FocusFollowsMouse
@@ -605,6 +608,7 @@ public:
     void setFocusPolicy(FocusPolicy focusPolicy);
     void setXwaylandCrashPolicy(XwaylandCrashPolicy crashPolicy);
     void setXwaylandMaxCrashCount(int maxCrashCount);
+    void setXwaylandEavesdrops(bool enabled);
     void setNextFocusPrefersMouse(bool nextFocusPrefersMouse);
     void setClickRaise(bool clickRaise);
     void setAutoRaise(bool autoRaise);
@@ -750,6 +754,9 @@ public:
     static int defaultXwaylandMaxCrashCount() {
         return 3;
     }
+    static bool defaultXwaylandEavesdrops() {
+        return false;
+    }
     static LatencyPolicy defaultLatencyPolicy() {
         return LatencyMedium;
     }
@@ -773,6 +780,7 @@ Q_SIGNALS:
     void focusPolicyIsResonableChanged();
     void xwaylandCrashPolicyChanged();
     void xwaylandMaxCrashCountChanged();
+    void xwaylandEavesdropsChanged();
     void nextFocusPrefersMouseChanged();
     void clickRaiseChanged();
     void autoRaiseChanged();
@@ -855,6 +863,7 @@ private:
     bool m_hideUtilityWindowsForInactive;
     XwaylandCrashPolicy m_xwaylandCrashPolicy;
     int m_xwaylandMaxCrashCount;
+    bool m_xwaylandEavesdrops = false;
     LatencyPolicy m_latencyPolicy;
     RenderTimeEstimator m_renderTimeEstimator;
 

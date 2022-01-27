@@ -120,6 +120,8 @@ private:
     void uninstallSocketNotifier();
     void maybeDestroyReadyNotifier();
     void updatePrimary(AbstractOutput *primaryOutput);
+    void refreshEavesdropping();
+    bool shouldEavesdrop() const;
 
     bool startInternal();
     void stopInternal();

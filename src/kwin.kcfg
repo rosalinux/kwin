@@ -325,5 +325,8 @@
         <entry name="XwaylandMaxCrashCount" type="UInt">
             <default>3</default>
         </entry>
+        <entry name="XwaylandEavesdrops" type="Bool">
+            <default>false</default>
+        </entry>
     </group>
 </kcfg>
