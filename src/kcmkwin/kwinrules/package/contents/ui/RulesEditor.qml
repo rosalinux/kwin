@@ -217,9 +217,8 @@ ScrollViewKCM {
                         }
                     }
                     QQC2.ToolButton {
-                        icon.name: (model.enabled) ? "dialog-ok-apply" : "list-add"
-                        opacity: propertyDelegate.hovered ? 1 : 0
-                        onClicked: propertyDelegate.clicked()
+                        icon.name: (model.enabled) ? "edit-redo-symbolic" : "list-add"
+                        onClicked: addProperty();
                         Layout.preferredWidth: implicitWidth
                         Layout.leftMargin: -Kirigami.Units.smallSpacing
                         Layout.rightMargin: -Kirigami.Units.smallSpacing
@@ -228,13 +227,15 @@ ScrollViewKCM {
                 }
 
                 onClicked: {
+                    addProperty();
+                    propertySheet.close();
+                }
+
+                function addProperty() {
                     model.enabled = true;
                     if (model.suggested != null) {
                         model.value = model.suggested;
                         model.suggested = null;
-                    }
-                    if (!overlayModel.onlySuggestions) {
-                        propertySheet.close();
                     }
                 }
             }
