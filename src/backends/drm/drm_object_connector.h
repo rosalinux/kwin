@@ -69,6 +69,7 @@ public:
         Broadcast_RGB = 9,
         MaxBpc = 10,
         LinkStatus = 11,
+        PanelOrientation = 12,
         Count
     };
 
@@ -80,6 +81,12 @@ public:
     enum class LinkStatus : uint32_t {
         Good = 0,
         Bad = 1
+    };
+    enum class PanelOrientation : uint32_t {
+        Normal = 0,
+        UpsideDown = 1,
+        LeftUp = 2,
+        RightUp = 3
     };
 
     bool init() override;
@@ -108,6 +115,7 @@ public:
     bool hasRgbRange() const;
     AbstractWaylandOutput::RgbRange rgbRange() const;
     LinkStatus linkStatus() const;
+    PanelOrientation panelOrientation() const;
 
 private:
     QScopedPointer<DrmPipeline> m_pipeline;

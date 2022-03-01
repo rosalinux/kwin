@@ -273,31 +273,6 @@ bool DrmOutput::setDrmDpmsMode(DpmsMode mode)
     }
 }
 
-DrmPlane::Transformations outputToPlaneTransform(DrmOutput::Transform transform)
-{
-    using OutTrans = DrmOutput::Transform;
-    using PlaneTrans = DrmPlane::Transformation;
-
-    // TODO: Do we want to support reflections (flips)?
-
-    switch (transform) {
-    case OutTrans::Normal:
-    case OutTrans::Flipped:
-        return PlaneTrans::Rotate0;
-    case OutTrans::Rotated90:
-    case OutTrans::Flipped90:
-        return PlaneTrans::Rotate90;
-    case OutTrans::Rotated180:
-    case OutTrans::Flipped180:
-        return PlaneTrans::Rotate180;
-    case OutTrans::Rotated270:
-    case OutTrans::Flipped270:
-        return PlaneTrans::Rotate270;
-    default:
-        Q_UNREACHABLE();
-    }
-}
-
 void DrmOutput::updateModes()
 {
     setModes(getModes());
@@ -393,6 +368,52 @@ QVector<uint64_t> DrmOutput::supportedModifiers(uint32_t drmFormat) const
     return m_pipeline->supportedModifiers(drmFormat);
 }
 
+static uint32_t angle(DrmOutput::Transform transform)
+{
+    switch (transform) {
+    case DrmOutput::Transform::Normal:
+        return 0;
+    case DrmOutput::Transform::Rotated90:
+        return 90;
+    case DrmOutput::Transform::Rotated180:
+        return 180;
+    case DrmOutput::Transform::Rotated270:
+        return 270;
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+static uint32_t angle(DrmConnector::PanelOrientation orientation) {
+    switch (orientation) {
+    case DrmConnector::PanelOrientation::Normal:
+        return 0;
+    case DrmConnector::PanelOrientation::RightUp:
+        return 90;
+    case DrmConnector::PanelOrientation::UpsideDown:
+        return 180;
+    case DrmConnector::PanelOrientation::LeftUp:
+        return 270;
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+static DrmPlane::Transformations transformation(uint32_t angle) {
+    switch (angle % 360) {
+    case 0:
+        return DrmPlane::Transformation::Rotate0;
+    case 90:
+        return DrmPlane::Transformation::Rotate90;
+    case 180:
+        return DrmPlane::Transformation::Rotate180;
+    case 270:
+        return DrmPlane::Transformation::Rotate270;
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
 bool DrmOutput::queueChanges(const WaylandOutputConfig &config)
 {
     static bool valid;
@@ -411,7 +432,7 @@ bool DrmOutput::queueChanges(const WaylandOutputConfig &config)
     m_pipeline->pending.mode = *it;
     m_pipeline->pending.overscan = props->overscan;
     m_pipeline->pending.rgbRange = props->rgbRange;
-    m_pipeline->pending.sourceTransformation = outputToPlaneTransform(props->transform);
+    m_pipeline->pending.sourceTransformation = transformation(angle(props->transform) + angle(m_connector->panelOrientation()));
     if (!envOnlySoftwareRotations && m_gpu->atomicModeSetting()) {
         m_pipeline->pending.bufferTransformation = m_pipeline->pending.sourceTransformation;
     }

@@ -128,6 +128,12 @@ DrmConnector::DrmConnector(DrmGpu *gpu, uint32_t connectorId)
                 QByteArrayLiteral("Good"),
                 QByteArrayLiteral("Bad")
             }),
+            PropertyDefinition(QByteArrayLiteral("panel orientation"), DrmObject::Requirement::Optional, {
+                QByteArrayLiteral("Normal"),
+                QByteArrayLiteral("Upside Down"),
+                QByteArrayLiteral("Left Side Up"),
+                QByteArrayLiteral("Right Side Up")
+            })
         }, DRM_MODE_OBJECT_CONNECTOR)
     , m_pipeline(new DrmPipeline(this))
     , m_conn(drmModeGetConnector(gpu->fd(), connectorId))
@@ -418,6 +424,15 @@ DrmConnector::LinkStatus DrmConnector::linkStatus() const
         return property->enumForValue<LinkStatus>(property->current());
     }
     return LinkStatus::Good;
+}
+
+DrmConnector::PanelOrientation DrmConnector::panelOrientation() const
+{
+    if (const auto &property = getProp(PropertyIndex::PanelOrientation)) {
+        return property->enumForValue<PanelOrientation>(property->current());
+    } else {
+        return PanelOrientation::Normal;
+    }
 }
 
 QDebug& operator<<(QDebug& s, const KWin::DrmConnector *obj)
