@@ -312,7 +312,7 @@ bool DrmOutput::present()
         }
     }
     bool modeset = gpu()->needsModeset();
-    if (modeset ? m_pipeline->maybeModeset() : m_pipeline->present()) {
+    if (modeset ? DrmPipeline::maybeModeset({m_pipeline}) : DrmPipeline::presentPipelines({m_pipeline})) {
         Q_EMIT outputChange(m_pipeline->primaryLayer()->currentDamage());
         return true;
     } else if (!modeset) {

@@ -61,27 +61,30 @@ bool DrmPipeline::testScanout()
     }
 }
 
-bool DrmPipeline::present()
+bool DrmPipeline::presentPipelines(const QVector<DrmPipeline *> &pipelines)
 {
-    Q_ASSERT(m_pending.crtc);
-    if (gpu()->atomicModeSetting()) {
-        return commitPipelines({this}, CommitMode::Commit);
+    if (pipelines.first()->gpu()->atomicModeSetting()) {
+        return commitPipelines(pipelines, CommitMode::Commit);
     } else {
-        if (m_pending.layer->hasDirectScanoutBuffer()) {
-            // already presented
-            return true;
-        }
-        if (!presentLegacy()) {
-            return false;
+        for (const auto &pipeline : pipelines) {
+            if (pipeline->m_pending.layer->hasDirectScanoutBuffer()) {
+                // already presented
+                continue;
+            }
+            if (!pipeline->presentLegacy()) {
+                return false;
+            }
         }
     }
     return true;
 }
 
-bool DrmPipeline::maybeModeset()
+bool DrmPipeline::maybeModeset(const QVector<DrmPipeline *> &pipelines)
 {
-    m_modesetPresentPending = true;
-    return gpu()->maybeModeset();
+    for (const auto &pipeline : pipelines) {
+        pipeline->m_modesetPresentPending = true;
+    }
+    return pipelines.first()->gpu()->maybeModeset();
 }
 
 bool DrmPipeline::commitPipelines(const QVector<DrmPipeline *> &pipelines, CommitMode mode, const QVector<DrmObject *> &unusedObjects)

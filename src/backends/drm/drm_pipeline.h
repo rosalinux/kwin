@@ -54,14 +54,7 @@ public:
     DrmPipeline(DrmConnector *conn);
     ~DrmPipeline();
 
-    /**
-     * tests the pending commit first and commits it if the test passes
-     * if the test fails, there is a guarantee for no lasting changes
-     */
-    bool present();
     bool testScanout();
-    bool maybeModeset();
-
     bool needsModeset() const;
     void applyPendingChanges();
     void revertPendingChanges();
@@ -121,6 +114,8 @@ public:
     };
     Q_ENUM(CommitMode);
     static bool commitPipelines(const QVector<DrmPipeline *> &pipelines, CommitMode mode, const QVector<DrmObject *> &unusedObjects = {});
+    static bool presentPipelines(const QVector<DrmPipeline *> &pipelines);
+    static bool maybeModeset(const QVector<DrmPipeline *> &pipelines);
 
 private:
     bool activePending() const;
