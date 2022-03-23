@@ -111,6 +111,7 @@ DrmConnector::DrmConnector(DrmGpu *gpu, uint32_t connectorId)
                                       PropertyDefinition(QByteArrayLiteral("Broadcast RGB"), Requirement::Optional, {QByteArrayLiteral("Automatic"), QByteArrayLiteral("Full"), QByteArrayLiteral("Limited 16:235")}),
                                       PropertyDefinition(QByteArrayLiteral("max bpc"), Requirement::Optional),
                                       PropertyDefinition(QByteArrayLiteral("link-status"), Requirement::Optional, {QByteArrayLiteral("Good"), QByteArrayLiteral("Bad")}),
+                                      PropertyDefinition(QByteArrayLiteral("TILE"), Requirement::Optional),
                                   },
                 DRM_MODE_OBJECT_CONNECTOR)
     , m_pipeline(new DrmPipeline(this))
@@ -332,6 +333,24 @@ bool DrmConnector::updateProperties()
         m_physicalSize = overwriteSize;
     }
 
+    if (const auto tile = getProp(PropertyIndex::Tile); tile && tile->immutableBlob()) {
+        int flags, numTilesX, numTilesY, tileLocX, tileLocY, tileWidth, tileHeight;
+        int parsed = sscanf(static_cast<char *>(tile->immutableBlob()->data), "%d:%d:%d:%d:%d:%d:%d:%d",
+                            &m_tilingInfo.groupId, &flags, &numTilesX, &numTilesY, &tileLocX, &tileLocY, &tileWidth, &tileHeight);
+        if (parsed == 8) {
+            m_tilingInfo.isTiled = true;
+            m_tilingInfo.isSingleMonitor = flags & 1;
+            m_tilingInfo.numTiles = {numTilesX, numTilesY};
+            m_tilingInfo.tileLocation = {tileLocX, tileLocY};
+            m_tilingInfo.tilePixelSize = {tileWidth, tileHeight};
+        } else {
+            qCWarning(KWIN_DRM, "Failed to parse the TILE blob of connector %d! Blob contained %d integers", id(), parsed);
+            m_tilingInfo.isTiled = false;
+        }
+    } else {
+        m_tilingInfo.isTiled = false;
+    }
+
     // update modes
     bool equal = m_conn->count_modes == m_driverModes.count();
     for (int i = 0; equal && i < m_conn->count_modes; i++) {
@@ -341,9 +360,13 @@ bool DrmConnector::updateProperties()
         // reload modes
         m_driverModes.clear();
         for (int i = 0; i < m_conn->count_modes; i++) {
-            m_driverModes.append(QSharedPointer<DrmConnectorMode>::create(this, m_conn->modes[i]));
+            // with tiled displays, only accept the first full-sized mode for now
+            if (!m_tilingInfo.isTiled || (QSize(m_conn->modes[i].hdisplay, m_conn->modes[i].vdisplay) == m_tilingInfo.tilePixelSize && m_modes.isEmpty())) {
+                m_driverModes.append(QSharedPointer<DrmConnectorMode>::create(this, m_conn->modes[i]));
+            }
         }
         if (m_driverModes.isEmpty()) {
+            qCWarning(KWIN_DRM, "connector %d has no supported modes!", id());
             return false;
         } else {
             m_modes.clear();
@@ -462,6 +485,31 @@ QSharedPointer<DrmConnectorMode> DrmConnector::generateMode(const QSize &size, u
 
     free(modeInfo);
     return QSharedPointer<DrmConnectorMode>::create(this, mode);
+}
+
+bool DrmConnector::isTiled() const
+{
+    return m_tilingInfo.isTiled;
+}
+
+int DrmConnector::tileGroup() const
+{
+    return m_tilingInfo.groupId;
+}
+
+QPointF DrmConnector::tilePosition() const
+{
+    return QPointF((m_tilingInfo.tileLocation.x() - 1) / float(m_tilingInfo.numTiles.width()), (m_tilingInfo.tileLocation.y() - 1) / float(m_tilingInfo.numTiles.height()));
+}
+
+QSizeF DrmConnector::tileSize() const
+{
+    return QSizeF(1.0f / m_tilingInfo.numTiles.width(),  1.0f / m_tilingInfo.numTiles.height());
+}
+
+QSize DrmConnector::totalTiledOutputSize() const
+{
+    return QSize(m_tilingInfo.tilePixelSize.width() * m_tilingInfo.numTiles.width(), m_tilingInfo.tilePixelSize.height() * m_tilingInfo.numTiles.height());
 }
 
 QDebug &operator<<(QDebug &s, const KWin::DrmConnector *obj)

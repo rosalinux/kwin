@@ -64,6 +64,7 @@ public:
         Broadcast_RGB = 9,
         MaxBpc = 10,
         LinkStatus = 11,
+        Tile = 12,
         Count
     };
 
@@ -104,6 +105,12 @@ public:
     Output::RgbRange rgbRange() const;
     LinkStatus linkStatus() const;
 
+    bool isTiled() const;
+    int tileGroup() const;
+    QPointF tilePosition() const;
+    QSizeF tileSize() const;
+    QSize totalTiledOutputSize() const;
+
 private:
     QList<QSharedPointer<DrmConnectorMode>> generateCommonModes();
     QSharedPointer<DrmConnectorMode> generateMode(const QSize &size, uint32_t refreshRate);
@@ -115,6 +122,16 @@ private:
     QList<QSharedPointer<DrmConnectorMode>> m_driverModes;
     QList<QSharedPointer<DrmConnectorMode>> m_modes;
     uint32_t m_possibleCrtcs = 0;
+
+    struct TilingInfo
+    {
+        bool isTiled = false;
+        int groupId;
+        bool isSingleMonitor = true;
+        QSize numTiles = QSize(1, 1);
+        QPoint tileLocation = QPoint(0, 0);
+        QSize tilePixelSize;
+    } m_tilingInfo;
 
     friend QDebug &operator<<(QDebug &s, const KWin::DrmConnector *obj);
 };
