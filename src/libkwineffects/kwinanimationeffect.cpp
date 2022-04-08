@@ -11,6 +11,7 @@
 #include "kwinanimationeffect.h"
 #include "kwinglutils.h"
 #include "anidata_p.h"
+#include "kwindeformeffectprivate_p.h"
 
 #include <QDateTime>
 #include <QTimer>
@@ -28,14 +29,62 @@ QDebug operator<<(QDebug dbg, const KWin::FPx2 &fpx2)
 
 QElapsedTimer AnimationEffect::s_clock;
 
-class AnimationEffectPrivate
+class AnimationEffectPrivate : public DeformEffectPrivate
 {
 public:
-    AnimationEffectPrivate()
+    AnimationEffectPrivate(AnimationEffect *effect)
+        : q(effect)
     {
+        live = false;
         m_animationsTouched = m_isInitialized = false;
         m_justEndedAnimation = 0;
     }
+    void redirect(EffectWindow *window, int textureWidth, int textureHeight)
+    {
+        DeformOffscreenData *&offscreenData = windows[window];
+        if (offscreenData) {
+            //             offscreenData->isDirty = true;
+            //             effects->makeOpenGLContextCurrent();
+            //             maybeRender(window, offscreenData);
+            return;
+        }
+        offscreenData = new DeformOffscreenData;
+
+        if (windows.count() == 1) {
+            setupConnections();
+        }
+
+        offscreenData->textureSize = QSize(textureWidth, textureHeight);
+        effects->makeOpenGLContextCurrent();
+        maybeRender(window, offscreenData);
+    }
+
+    void unredirect(EffectWindow *window)
+    {
+        delete windows.take(window);
+        if (windows.isEmpty()) {
+            destroyConnections();
+        }
+    }
+
+    void setupConnections()
+    {
+        windowDeletedConnection =
+            QObject::connect(effects, &EffectsHandler::windowDeleted, q, [this](EffectWindow *window) {
+                unredirect(window);
+            });
+    }
+
+    void destroyConnections()
+    {
+        QObject::disconnect(windowDamagedConnection);
+        QObject::disconnect(windowDeletedConnection);
+
+        windowDamagedConnection = {};
+        windowDeletedConnection = {};
+    }
+
+    AnimationEffect *q;
     AnimationEffect::AniMap m_animations;
     static quint64 m_animCounter;
     quint64 m_justEndedAnimation; // protect against cancel
@@ -46,7 +95,7 @@ public:
 quint64 AnimationEffectPrivate::m_animCounter = 0;
 
 AnimationEffect::AnimationEffect()
-    : d_ptr(new AnimationEffectPrivate())
+    : d_ptr(new AnimationEffectPrivate(this))
 {
     if (!s_clock.isValid()) {
         s_clock.start();
@@ -236,7 +285,17 @@ quint64 AnimationEffect::p_animate(EffectWindow *w, Attribute a, uint meta, int 
 
     PreviousWindowPixmapLockPtr previousPixmap;
     if (a == CrossFadePrevious) {
-        previousPixmap = PreviousWindowPixmapLockPtr::create(w);
+        //previousPixmap = PreviousWindowPixmapLockPtr::create(w);
+        qWarning() << "REDIRECTING" << w << w->frameGeometry() << w->bufferGeometry();
+        AniMap::const_iterator entry = d->m_animations.constFind(w);
+        if (entry != d->m_animations.constEnd()) {
+            for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
+                if (anim->attribute == Size) {
+                    d->redirect(w, qreal(anim->from[0]) / anim->to[0] * w->expandedGeometry().width(), qreal(anim->from[1]) / anim->to[1] * w->expandedGeometry().height());
+                    break;
+                }
+            }
+        }
     }
 
     it->first.append(AniData(
@@ -343,7 +402,7 @@ bool AnimationEffect::freezeInTime(quint64 animationId, qint64 frozenTime)
 bool AnimationEffect::redirect(quint64 animationId, Direction direction, TerminationFlags terminationFlags)
 {
     Q_D(AnimationEffect);
-
+    qWarning() << "CALLED REDIRECT";
     if (animationId == d->m_justEndedAnimation) {
         return false;
     }
@@ -378,7 +437,7 @@ bool AnimationEffect::redirect(quint64 animationId, Direction direction, Termina
 bool AnimationEffect::complete(quint64 animationId)
 {
     Q_D(AnimationEffect);
-
+    qWarning() << "completed" << animationId << d->m_justEndedAnimation;
     if (animationId == d->m_justEndedAnimation) {
         return false;
     }
@@ -393,6 +452,8 @@ bool AnimationEffect::complete(quint64 animationId)
         }
 
         animIt->timeLine.setElapsed(animIt->timeLine.duration());
+        qWarning() << "UNREDIRECTING" << entryIt.key();
+        d->unredirect(entryIt.key());
 
         return true;
     }
@@ -403,6 +464,7 @@ bool AnimationEffect::complete(quint64 animationId)
 bool AnimationEffect::cancel(quint64 animationId)
 {
     Q_D(AnimationEffect);
+    qWarning() << "canceled" << animationId;
     if (animationId == d->m_justEndedAnimation) {
         return true; // this is just ending, do not try to cancel it but fake success
     }
@@ -507,7 +569,8 @@ void AnimationEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, 
                 continue;
             }
 
-            if (anim->attribute == Opacity || anim->attribute == CrossFadePrevious) {
+            //FIXME MART
+            if (anim->attribute == Opacity /*|| anim->attribute == CrossFadePrevious*/) {
                 data.setTranslucent();
             } else if (!(anim->attribute == Brightness || anim->attribute == Saturation)) {
                 data.setTransformed();
@@ -531,6 +594,7 @@ static inline float geometryCompensation(int flags, float v)
 void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
     Q_D(AnimationEffect);
+    bool hasFade = false;
     AniMap::const_iterator entry = d->m_animations.constFind(w);
     if (entry != d->m_animations.constEnd()) {
         for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
@@ -631,6 +695,7 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
                 break;
             case CrossFadePrevious:
                 data.setCrossFadeProgress(progress(*anim));
+                hasFade = true;
                 break;
             case Shader:
                 if (anim->shader && anim->shader->isValid()) {
@@ -653,7 +718,36 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
         }
     }
 
-    effects->paintWindow(w, mask, region, data);
+    if (hasFade) {
+        effects->paintWindow(w, mask, region, data);
+        //data.setOpacity(1-data.crossFadeProgress());
+        data.setOpacity(0.8);
+        DeformOffscreenData *offscreenData = d->windows.value(w);
+        if (!offscreenData) {
+            effects->drawWindow(w, mask, region, data);
+            return;
+        }
+
+        const QRect expandedGeometry = w->expandedGeometry();
+        const QRect frameGeometry = w->frameGeometry();
+
+        QRectF visibleRect = expandedGeometry;
+        visibleRect.moveTopLeft(expandedGeometry.topLeft() - frameGeometry.topLeft());
+        WindowQuad quad;
+        quad[0] = WindowVertex(visibleRect.topLeft(), QPointF(0, 0));
+        quad[1] = WindowVertex(visibleRect.topRight(), QPointF(1, 0));
+        quad[2] = WindowVertex(visibleRect.bottomRight(), QPointF(1, 1));
+        quad[3] = WindowVertex(visibleRect.bottomLeft(), QPointF(0, 1));
+
+        WindowQuadList quads;
+        quads.append(quad);
+        //qWarning()<<"AAA"<<visibleRect<<offscreenData->texture->size();
+
+        //GLTexture *texture = d->maybeRender(w, offscreenData);
+        d->paint(w, offscreenData->texture.data(), region, data, quads);
+    } else {
+        effects->paintWindow(w, mask, region, data);
+    }
 }
 
 void AnimationEffect::postPaintScreen()
