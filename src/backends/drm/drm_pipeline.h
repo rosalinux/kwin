@@ -140,7 +140,7 @@ private:
     bool populateAtomicValues(drmModeAtomicReq *req, uint32_t &flags);
     void atomicCommitFailed();
     void atomicCommitSuccessful(CommitMode mode);
-    void prepareAtomicModeset();
+    bool prepareAtomicModeset();
     static bool commitPipelinesAtomic(const QVector<DrmPipeline *> &pipelines, CommitMode mode, const QVector<DrmObject *> &unusedObjects);
 
     // logging helpers

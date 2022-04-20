@@ -167,7 +167,9 @@ bool DrmPipeline::commitPipelinesAtomic(const QVector<DrmPipeline *> &pipelines,
 bool DrmPipeline::populateAtomicValues(drmModeAtomicReq *req, uint32_t &flags)
 {
     if (needsModeset()) {
-        prepareAtomicModeset();
+        if (!prepareAtomicModeset()) {
+            return false;
+        }
         flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
     }
     if (activePending()) {
@@ -208,11 +210,11 @@ bool DrmPipeline::populateAtomicValues(drmModeAtomicReq *req, uint32_t &flags)
     return true;
 }
 
-void DrmPipeline::prepareAtomicModeset()
+bool DrmPipeline::prepareAtomicModeset()
 {
     if (!pending.crtc) {
         m_connector->setPending(DrmConnector::PropertyIndex::CrtcId, 0);
-        return;
+        return true;
     }
 
     m_connector->setPending(DrmConnector::PropertyIndex::CrtcId, activePending() ? pending.crtc->id() : 0);
@@ -238,10 +240,13 @@ void DrmPipeline::prepareAtomicModeset()
     pending.crtc->setPending(DrmCrtc::PropertyIndex::ModeId, activePending() ? pending.mode->blobId() : 0);
 
     pending.crtc->primaryPlane()->setPending(DrmPlane::PropertyIndex::CrtcId, activePending() ? pending.crtc->id() : 0);
-    pending.crtc->primaryPlane()->setTransformation(pending.bufferOrientation);
+    if (!pending.crtc->primaryPlane()->setTransformation(pending.bufferOrientation) && pending.bufferOrientation != DrmPlane::Transformations(DrmPlane::Transformation::Rotate0)) {
+        return false;
+    }
     if (pending.crtc->cursorPlane()) {
         pending.crtc->cursorPlane()->setTransformation(DrmPlane::Transformation::Rotate0);
     }
+    return true;
 }
 
 uint32_t DrmPipeline::calculateUnderscan()
