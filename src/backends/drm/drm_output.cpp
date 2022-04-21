@@ -382,6 +382,11 @@ void DrmOutput::applyQueuedChanges(const OutputConfiguration &config)
     moveTo(props->pos);
     setScale(props->scale);
     setTransformInternal(props->transform);
+    if (m_pipeline->pending.bufferOrientation != m_pipeline->pending.renderOrientation) {
+        qCDebug(KWIN_DRM) << "Falling back to software rotation on output" << this;
+    } else {
+        qCDebug(KWIN_DRM) << "Using hardware rotation on output" << this;
+    }
 
     const auto &mode = m_pipeline->pending.mode;
     setCurrentModeInternal(mode->size(), mode->refreshRate());
