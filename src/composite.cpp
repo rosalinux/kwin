@@ -636,7 +636,7 @@ void Compositor::composite(RenderLoop *renderLoop)
     }
 
     Output *output = findOutput(renderLoop);
-    OutputLayer *outputLayer = m_backend->primaryLayer(output);
+    OutputLayer *outputLayer = m_backend->primaryLayer(output->renderOutput());
     fTraceDuration("Paint (", output->name(), ")");
 
     RenderLayer *superLayer = m_superlayers[renderLoop];

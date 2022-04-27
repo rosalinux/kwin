@@ -178,7 +178,7 @@ void VirtualBackend::removeOutput(Output *output)
 QImage VirtualBackend::captureOutput(Output *output) const
 {
     if (auto backend = qobject_cast<VirtualQPainterBackend *>(Compositor::self()->backend())) {
-        if (auto layer = backend->primaryLayer(output)) {
+        if (auto layer = backend->primaryLayer(output->renderOutput())) {
             return *layer->image();
         }
     }

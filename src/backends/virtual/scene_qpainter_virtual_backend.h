@@ -43,7 +43,7 @@ public:
     ~VirtualQPainterBackend() override;
 
     void present(Output *output) override;
-    VirtualQPainterLayer *primaryLayer(Output *output) override;
+    VirtualQPainterLayer *primaryLayer(RenderOutput *output) override;
 
 private:
     void createOutputs();

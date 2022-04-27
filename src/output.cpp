@@ -8,7 +8,9 @@
 */
 
 #include "output.h"
+
 #include "outputconfiguration.h"
+#include "renderoutput.h"
 
 #include <KConfigGroup>
 #include <KLocalizedString>
@@ -62,6 +64,7 @@ OutputMode::Flags OutputMode::flags() const
 
 Output::Output(QObject *parent)
     : QObject(parent)
+    , m_renderOutput(new SimpleRenderOutput(this))
 {
 }
 
@@ -414,6 +417,11 @@ void Output::setRgbRangeInternal(RgbRange range)
 void Output::setColorTransformation(const QSharedPointer<ColorTransformation> &transformation)
 {
     Q_UNUSED(transformation);
+}
+
+RenderOutput *Output::renderOutput() const
+{
+    return m_renderOutput.get();
 }
 
 } // namespace KWin

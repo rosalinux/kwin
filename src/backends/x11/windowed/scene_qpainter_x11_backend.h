@@ -45,7 +45,7 @@ public:
     ~X11WindowedQPainterBackend() override;
 
     void present(Output *output) override;
-    OutputLayer *primaryLayer(Output *output) override;
+    OutputLayer *primaryLayer(RenderOutput *output) override;
 
 private:
     void createOutputs();

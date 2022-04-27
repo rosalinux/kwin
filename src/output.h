@@ -28,6 +28,8 @@ class EffectScreenImpl;
 class RenderLoop;
 class OutputConfiguration;
 class ColorTransformation;
+class RenderOutput;
+class SimpleRenderOutput;
 
 class KWIN_EXPORT OutputMode
 {
@@ -242,6 +244,8 @@ public:
 
     virtual void setColorTransformation(const QSharedPointer<ColorTransformation> &transformation);
 
+    RenderOutput *renderOutput() const;
+
 Q_SIGNALS:
     /**
      * This signal is emitted when the geometry of this output has changed.
@@ -330,6 +334,7 @@ protected:
 
 private:
     Q_DISABLE_COPY(Output)
+    QScopedPointer<SimpleRenderOutput> m_renderOutput;
     EffectScreenImpl *m_effectScreen = nullptr;
     int m_directScanoutCount = 0;
     Information m_information;

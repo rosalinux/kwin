@@ -31,7 +31,7 @@ public:
     ~DrmQPainterBackend();
 
     void present(Output *output) override;
-    OutputLayer *primaryLayer(Output *output) override;
+    OutputLayer *primaryLayer(RenderOutput *output) override;
 
     QSharedPointer<DrmPipelineLayer> createPrimaryLayer(DrmPipeline *pipeline) override;
     QSharedPointer<DrmOverlayLayer> createCursorLayer(DrmPipeline *pipeline) override;
