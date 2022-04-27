@@ -215,9 +215,9 @@ OutputLayer *EglGbmBackend::primaryLayer(RenderOutput *output)
     return static_cast<DrmAbstractOutput *>(output->platformOutput())->outputLayer();
 }
 
-QSharedPointer<GLTexture> EglGbmBackend::textureForOutput(Output *output) const
+QSharedPointer<GLTexture> EglGbmBackend::textureForOutput(RenderOutput *output) const
 {
-    const auto drmOutput = static_cast<DrmAbstractOutput *>(output);
+    const auto drmOutput = static_cast<DrmAbstractOutput *>(output->platformOutput());
     return static_cast<EglGbmLayer *>(drmOutput->outputLayer())->texture();
 }
 

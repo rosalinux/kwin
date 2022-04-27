@@ -91,7 +91,7 @@ public:
         return m_havePlatformBase;
     }
 
-    QSharedPointer<KWin::GLTexture> textureForOutput(KWin::Output *output) const override;
+    QSharedPointer<KWin::GLTexture> textureForOutput(RenderOutput *output) const override;
 
 private:
     bool initializeEgl();

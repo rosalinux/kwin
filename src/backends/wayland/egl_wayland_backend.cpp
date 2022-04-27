@@ -362,10 +362,10 @@ bool EglWaylandBackend::initBufferConfigs()
     return true;
 }
 
-QSharedPointer<KWin::GLTexture> EglWaylandBackend::textureForOutput(KWin::Output *output) const
+QSharedPointer<KWin::GLTexture> EglWaylandBackend::textureForOutput(RenderOutput *output) const
 {
     QSharedPointer<GLTexture> texture(new GLTexture(GL_RGBA8, output->pixelSize()));
-    GLFramebuffer::pushFramebuffer(m_outputs[output]->fbo());
+    GLFramebuffer::pushFramebuffer(m_outputs[output->platformOutput()]->fbo());
     GLFramebuffer renderTarget(texture.data());
     renderTarget.blitFromFramebuffer(QRect(0, texture->height(), texture->width(), -texture->height()));
     GLFramebuffer::popFramebuffer();

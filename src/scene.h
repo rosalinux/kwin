@@ -158,7 +158,7 @@ public:
      */
     virtual QVector<QByteArray> openGLPlatformInterfaceExtensions() const;
 
-    virtual QSharedPointer<GLTexture> textureForOutput(Output *output) const
+    virtual QSharedPointer<GLTexture> textureForOutput(RenderOutput *output) const
     {
         Q_UNUSED(output);
         return {};

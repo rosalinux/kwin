@@ -37,6 +37,11 @@ public:
      */
     QRect mapFromGlobal(const QRect &rect) const;
 
+    /**
+     * @returns the area that this RenderOutput fills within the Output it belongs to
+     */
+    virtual QRect relativePixelGeometry() const;
+
 Q_SIGNALS:
     void geometryChanged();
 };
@@ -49,6 +54,7 @@ public:
     QRect geometry() const override;
     Output *platformOutput() const override;
     bool usesSoftwareCursor() const override;
+    QRect relativePixelGeometry() const override;
 
 private:
     Output *const m_output;

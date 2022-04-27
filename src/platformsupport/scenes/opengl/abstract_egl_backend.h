@@ -62,7 +62,7 @@ public:
         return m_config;
     }
 
-    QSharedPointer<GLTexture> textureForOutput(Output *output) const override;
+    QSharedPointer<GLTexture> textureForOutput(RenderOutput *output) const override;
 
     dev_t deviceId() const;
     virtual bool prefer10bpc() const;

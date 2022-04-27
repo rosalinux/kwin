@@ -125,7 +125,7 @@ public:
      */
     void copyPixels(const QRegion &region);
 
-    virtual QSharedPointer<GLTexture> textureForOutput(Output *output) const;
+    virtual QSharedPointer<GLTexture> textureForOutput(RenderOutput *output) const;
 
 protected:
     /**

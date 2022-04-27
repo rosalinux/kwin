@@ -70,7 +70,7 @@ public:
     }
 
     QVector<QByteArray> openGLPlatformInterfaceExtensions() const override;
-    QSharedPointer<GLTexture> textureForOutput(Output *output) const override;
+    QSharedPointer<GLTexture> textureForOutput(RenderOutput *output) const override;
 
     QMatrix4x4 screenProjectionMatrix() const override
     {

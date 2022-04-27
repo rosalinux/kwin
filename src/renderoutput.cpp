@@ -32,6 +32,11 @@ QRect RenderOutput::mapFromGlobal(const QRect &rect) const
     return rect.translated(-geometry().topLeft());
 }
 
+QRect RenderOutput::relativePixelGeometry() const
+{
+    return geometry();
+}
+
 SimpleRenderOutput::SimpleRenderOutput(Output *output)
     : m_output(output)
 {
@@ -51,5 +56,11 @@ Output *SimpleRenderOutput::platformOutput() const
 bool SimpleRenderOutput::usesSoftwareCursor() const
 {
     return m_output->usesSoftwareCursor();
+}
+
+QRect SimpleRenderOutput::relativePixelGeometry() const
+{
+    QPoint position(geometry().topLeft().x() * m_output->scale() / m_output->pixelSize().width(), geometry().topLeft().y() * m_output->scale() / m_output->pixelSize().height());
+    return QRect(position, m_output->pixelSize());
 }
 }

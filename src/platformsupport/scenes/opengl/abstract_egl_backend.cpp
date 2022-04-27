@@ -12,6 +12,7 @@
 #include "options.h"
 #include "output.h"
 #include "platform.h"
+#include "renderoutput.h"
 #include "utils/common.h"
 #include "utils/egl_context_attribute_builder.h"
 #include "wayland/display.h"
@@ -369,7 +370,7 @@ void AbstractEglBackend::setSurface(const EGLSurface &surface)
     m_surface = surface;
 }
 
-QSharedPointer<GLTexture> AbstractEglBackend::textureForOutput(Output *requestedOutput) const
+QSharedPointer<GLTexture> AbstractEglBackend::textureForOutput(RenderOutput *requestedOutput) const
 {
     QSharedPointer<GLTexture> texture(new GLTexture(GL_RGBA8, requestedOutput->pixelSize()));
     GLFramebuffer renderTarget(texture.data());

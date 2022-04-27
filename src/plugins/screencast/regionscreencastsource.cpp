@@ -12,6 +12,7 @@
 #include <kwinglutils.h>
 #include <output.h>
 #include <platform.h>
+#include <renderoutput.h>
 #include <scene.h>
 
 #include <QPainter>
@@ -42,29 +43,37 @@ void RegionScreenCastSource::updateOutput(Output *output)
 {
     m_last = output->renderLoop()->lastPresentationTimestamp();
 
+    if (!m_region.intersects(output->geometry())) {
+        return;
+    }
     if (!m_renderedTexture.isNull()) {
-        const QSharedPointer<GLTexture> outputTexture = Compositor::self()->scene()->textureForOutput(output);
-        const auto outputGeometry = output->geometry();
-        if (!outputTexture || !m_region.intersects(output->geometry())) {
+        const auto textures = getTextures(output);
+        if (textures.isEmpty()) {
             return;
         }
 
-        GLFramebuffer::pushFramebuffer(m_target.data());
-        const QRect geometry({0, 0}, m_target->size());
+        for (auto it = textures.constBegin(); it != textures.constEnd(); it++) {
+            const auto output = it.key();
+            const auto outputTexture = it.value();
+            const QRect outputGeometry = output->geometry();
 
-        ShaderBinder shaderBinder(ShaderTrait::MapTexture);
-        QMatrix4x4 projectionMatrix;
-        projectionMatrix.ortho(m_region);
+            GLFramebuffer::pushFramebuffer(m_target.data());
+            const QRect geometry({0, 0}, m_target->size());
 
-        const QPoint pos = outputGeometry.topLeft();
-        projectionMatrix.translate(pos.x(), pos.y());
+            ShaderBinder shaderBinder(ShaderTrait::MapTexture);
+            QMatrix4x4 projectionMatrix;
+            projectionMatrix.ortho(m_region);
 
-        shaderBinder.shader()->setUniform(GLShader::ModelViewProjectionMatrix, projectionMatrix);
+            const QPoint pos = outputGeometry.topLeft();
+            projectionMatrix.translate(pos.x(), pos.y());
 
-        outputTexture->bind();
-        outputTexture->render(output->geometry());
-        outputTexture->unbind();
-        GLFramebuffer::popFramebuffer();
+            shaderBinder.shader()->setUniform(GLShader::ModelViewProjectionMatrix, projectionMatrix);
+
+            outputTexture->bind();
+            outputTexture->render(output->geometry());
+            outputTexture->unbind();
+            GLFramebuffer::popFramebuffer();
+        }
     }
 }
 
