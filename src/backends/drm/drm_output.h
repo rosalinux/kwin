@@ -30,6 +30,7 @@ class DrmGpu;
 class DrmPipeline;
 class DumbSwapchain;
 class GLTexture;
+class DrmRenderOutput;
 
 class KWIN_EXPORT DrmOutput : public DrmAbstractOutput
 {
@@ -38,11 +39,12 @@ public:
     DrmOutput(DrmPipeline *pipeline);
     ~DrmOutput() override;
 
+    bool present() override;
+    void setColorTransformation(const QSharedPointer<ColorTransformation> &transformation) override;
+    RenderOutput *renderOutput() const override;
+
     DrmConnector *connector() const;
     DrmPipeline *pipeline() const;
-
-    bool present() override;
-    DrmOutputLayer *outputLayer() const override;
 
     bool queueChanges(const OutputConfiguration &config);
     void applyQueuedChanges(const OutputConfiguration &config);
@@ -52,8 +54,6 @@ public:
     bool usesSoftwareCursor() const override;
     void updateCursor();
     void moveCursor();
-
-    void setColorTransformation(const QSharedPointer<ColorTransformation> &transformation) override;
 
 private:
     void updateEnablement(bool enable) override;
@@ -68,6 +68,7 @@ private:
     DrmPipeline *m_pipeline;
     DrmConnector *m_connector;
 
+    std::unique_ptr<DrmRenderOutput> m_renderOutput;
     bool m_setCursorSuccessful = false;
     bool m_moveCursorSuccessful = false;
     bool m_cursorTextureDirty = true;
@@ -75,6 +76,20 @@ private:
     QTimer m_turnOffTimer;
 };
 
+class DrmRenderOutput : public DrmAbstractRenderOutput
+{
+public:
+    DrmRenderOutput(DrmOutput *output, DrmPipeline *pipeline);
+
+    DrmOutputLayer *outputLayer() const override;
+    QRect geometry() const override;
+    Output *platformOutput() const override;
+    bool usesSoftwareCursor() const override;
+
+private:
+    DrmOutput *const m_output;
+    DrmPipeline *const m_pipeline;
+};
 }
 
 Q_DECLARE_METATYPE(KWin::DrmOutput *)

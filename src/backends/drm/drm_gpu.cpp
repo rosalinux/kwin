@@ -795,7 +795,7 @@ void DrmGpu::releaseBuffers()
     }
     for (const auto &output : qAsConst(m_outputs)) {
         if (const auto virtualOutput = qobject_cast<DrmVirtualOutput *>(output)) {
-            virtualOutput->outputLayer()->releaseBuffers();
+            virtualOutput->primaryLayer()->releaseBuffers();
         }
     }
 }

@@ -22,6 +22,7 @@ namespace KWin
 
 DrmVirtualOutput::DrmVirtualOutput(const QString &name, DrmGpu *gpu, const QSize &size, Type type)
     : DrmAbstractOutput(gpu)
+    , m_renderOutput(new SimpleRenderOutput(this))
     , m_vsyncMonitor(SoftwareVsyncMonitor::create(this))
 {
     connect(m_vsyncMonitor, &VsyncMonitor::vblankOccurred, this, &DrmVirtualOutput::vblank);
@@ -47,7 +48,7 @@ bool DrmVirtualOutput::present()
 {
     m_vsyncMonitor->arm();
     m_pageFlipPending = true;
-    Q_EMIT outputChange(m_layer->currentDamage());
+    Q_EMIT outputChange(m_primaryLayer->currentDamage());
     return true;
 }
 
@@ -69,14 +70,18 @@ void DrmVirtualOutput::updateEnablement(bool enable)
     m_gpu->platform()->enableOutput(this, enable);
 }
 
-DrmOutputLayer *DrmVirtualOutput::outputLayer() const
-{
-    return m_layer.data();
-}
-
 void DrmVirtualOutput::recreateSurface()
 {
-    m_layer = m_gpu->platform()->renderBackend()->createLayer(this);
+    m_primaryLayer = m_gpu->platform()->renderBackend()->createLayer(this);
 }
 
+RenderOutput *DrmVirtualOutput::renderOutput() const
+{
+    return m_renderOutput.get();
+}
+
+DrmOutputLayer *DrmVirtualOutput::primaryLayer() const
+{
+    return m_primaryLayer.get();
+}
 }

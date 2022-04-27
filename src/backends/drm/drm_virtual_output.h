@@ -35,17 +35,19 @@ public:
     ~DrmVirtualOutput() override;
 
     bool present() override;
-    DrmOutputLayer *outputLayer() const override;
+    RenderOutput *renderOutput() const override;
     void recreateSurface();
+    DrmOutputLayer *primaryLayer() const;
 
 private:
     void vblank(std::chrono::nanoseconds timestamp);
     void setDpmsMode(DpmsMode mode) override;
     void updateEnablement(bool enable) override;
 
-    QSharedPointer<DrmOutputLayer> m_layer;
+    QSharedPointer<DrmOutputLayer> m_primaryLayer;
     bool m_pageFlipPending = true;
 
+    const std::unique_ptr<SimpleRenderOutput> m_renderOutput;
     SoftwareVsyncMonitor *m_vsyncMonitor;
 };
 

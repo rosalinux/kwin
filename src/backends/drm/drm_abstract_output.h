@@ -9,6 +9,7 @@
 #pragma once
 
 #include "output.h"
+#include "renderoutput.h"
 
 namespace KWin
 {
@@ -16,15 +17,13 @@ namespace KWin
 class DrmBackend;
 class DrmGpu;
 class DrmOutputLayer;
-class RenderOutput;
-class SimpleRenderOutput;
+class DrmAbstractRenderOutput;
 
 class DrmAbstractOutput : public Output
 {
     Q_OBJECT
 public:
     DrmAbstractOutput(DrmGpu *gpu);
-    ~DrmAbstractOutput();
 
     RenderLoop *renderLoop() const override;
     void frameFailed() const;
@@ -33,15 +32,18 @@ public:
     DrmGpu *gpu() const;
 
     virtual bool present() = 0;
-    virtual DrmOutputLayer *outputLayer() const = 0;
-    RenderOutput *renderOutput() const;
+    virtual RenderOutput *renderOutput() const = 0;
 
 protected:
     friend class DrmGpu;
 
-    QScopedPointer<SimpleRenderOutput> m_renderOutput;
     RenderLoop *m_renderLoop;
     DrmGpu *const m_gpu;
 };
 
+class DrmAbstractRenderOutput : public RenderOutput
+{
+public:
+    virtual DrmOutputLayer *outputLayer() const = 0;
+};
 }

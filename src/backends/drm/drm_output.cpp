@@ -47,6 +47,7 @@ DrmOutput::DrmOutput(DrmPipeline *pipeline)
     : DrmAbstractOutput(pipeline->connector()->gpu())
     , m_pipeline(pipeline)
     , m_connector(pipeline->connector())
+    , m_renderOutput(std::make_unique<DrmRenderOutput>(this, pipeline))
 {
     m_pipeline->setOutput(this);
     const auto conn = m_pipeline->connector();
@@ -397,11 +398,6 @@ bool DrmOutput::usesSoftwareCursor() const
     return !m_setCursorSuccessful || !m_moveCursorSuccessful;
 }
 
-DrmOutputLayer *DrmOutput::outputLayer() const
-{
-    return m_pipeline->primaryLayer();
-}
-
 void DrmOutput::setColorTransformation(const QSharedPointer<ColorTransformation> &transformation)
 {
     m_pipeline->setColorTransformation(transformation);
@@ -484,4 +480,37 @@ void DrmOutput::renderCursorQPainter()
 
     layer->endFrame(infiniteRegion(), infiniteRegion());
 }
+
+RenderOutput *DrmOutput::renderOutput() const
+{
+    return m_renderOutput.get();
+}
+
+DrmRenderOutput::DrmRenderOutput(DrmOutput *output, DrmPipeline *pipeline)
+    : m_output(output)
+    , m_pipeline(pipeline)
+{
+    connect(output, &DrmOutput::geometryChanged, this, &RenderOutput::geometryChanged);
+}
+
+DrmOutputLayer *DrmRenderOutput::outputLayer() const
+{
+    return m_pipeline->primaryLayer();
+}
+
+QRect DrmRenderOutput::geometry() const
+{
+    return m_output->geometry();
+}
+
+Output *DrmRenderOutput::platformOutput() const
+{
+    return m_output;
+}
+
+bool DrmRenderOutput::usesSoftwareCursor() const
+{
+    return m_output->usesSoftwareCursor();
+}
+
 }

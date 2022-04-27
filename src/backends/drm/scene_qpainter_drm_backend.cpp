@@ -42,7 +42,7 @@ void DrmQPainterBackend::present(Output *output)
 
 OutputLayer *DrmQPainterBackend::primaryLayer(RenderOutput *output)
 {
-    return static_cast<DrmAbstractOutput *>(output->platformOutput())->outputLayer();
+    return static_cast<DrmAbstractRenderOutput *>(output)->outputLayer();
 }
 
 QSharedPointer<DrmPipelineLayer> DrmQPainterBackend::createPrimaryLayer(DrmPipeline *pipeline)
