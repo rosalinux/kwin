@@ -306,7 +306,9 @@ void X11WindowedBackend::createOutputs()
 
         logicalWidthSum += logicalWidth;
         m_outputs << output;
+        m_renderOutputs << output->renderOutput();
         Q_EMIT outputAdded(output);
+        Q_EMIT renderOutputAdded(output->renderOutput());
         Q_EMIT outputEnabled(output);
     }
 
@@ -512,6 +514,8 @@ void X11WindowedBackend::handleClientMessage(xcb_client_message_event_t *event)
                     x += (*it)->geometry().width();
                 }
 
+                m_renderOutputs.removeOne(removedOutput->renderOutput());
+                Q_EMIT renderOutputRemoved(removedOutput->renderOutput());
                 Q_EMIT outputDisabled(removedOutput);
                 Q_EMIT outputRemoved(removedOutput);
                 delete removedOutput;
@@ -695,4 +699,8 @@ Outputs X11WindowedBackend::enabledOutputs() const
     return m_outputs;
 }
 
+QVector<RenderOutput *> X11WindowedBackend::renderOutputs() const
+{
+    return m_renderOutputs;
+}
 }

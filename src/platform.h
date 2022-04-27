@@ -42,6 +42,7 @@ class Scene;
 class ScreenEdges;
 class Session;
 class OutputConfiguration;
+class RenderOutput;
 
 class KWIN_EXPORT Outputs : public QVector<Output *>
 {
@@ -307,6 +308,7 @@ public:
     {
         return Outputs();
     }
+    virtual QVector<RenderOutput *> renderOutputs() const = 0;
     Output *findOutput(int screenId) const;
     Output *findOutput(const QUuid &uuid) const;
     Output *findOutput(const QString &name) const;
@@ -389,6 +391,9 @@ Q_SIGNALS:
      * @see outputEnabled, outputRemoved
      */
     void outputDisabled(Output *output);
+
+    void renderOutputAdded(RenderOutput *output);
+    void renderOutputRemoved(RenderOutput *output);
 
     void primaryOutputChanged(Output *primaryOutput);
 

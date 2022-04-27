@@ -43,6 +43,7 @@
 #include "inputpanelv1window.h"
 #include "kwinglutils.h"
 #include "platform.h"
+#include "renderoutput.h"
 #include "utils/xcbutils.h"
 #include "virtualdesktops.h"
 #include "wayland_server.h"
@@ -1783,10 +1784,16 @@ void EffectsHandlerImpl::renderScreen(EffectScreen *screen)
     RenderTarget renderTarget(GLFramebuffer::currentFramebuffer());
     renderTarget.setDevicePixelRatio(screen->devicePixelRatio());
 
-    auto output = static_cast<EffectScreenImpl *>(screen)->platformOutput();
-    m_scene->prePaint(output);
-    m_scene->paint(&renderTarget, output->geometry());
-    m_scene->postPaint();
+    const auto platformOutput = static_cast<EffectScreenImpl *>(screen)->platformOutput();
+    const auto outputs = kwinApp()->platform()->renderOutputs();
+    for (const auto &output : outputs) {
+        if (output->platformOutput() != platformOutput) {
+            continue;
+        }
+        m_scene->prePaint(output);
+        m_scene->paint(&renderTarget, output->geometry());
+        m_scene->postPaint();
+    }
 }
 
 bool EffectsHandlerImpl::isCursorHidden() const
