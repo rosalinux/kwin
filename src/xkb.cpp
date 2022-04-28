@@ -12,6 +12,7 @@
 #include "wayland/seat_interface.h"
 // frameworks
 #include <KConfigGroup>
+#include <KKeyServer>
 // Qt
 #include <QKeyEvent>
 #include <QTemporaryFile>
@@ -25,6 +26,7 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 // system
 #include <bitset>
+#include <linux/input.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -606,4 +608,36 @@ void Xkb::setSeat(KWaylandServer::SeatInterface *seat)
     m_seat = QPointer<KWaylandServer::SeatInterface>(seat);
 }
 
+std::vector<uint32_t> Xkb::qtKeyToXkbKeyCodes(int keyQt)
+{
+    int sym;
+    if (!KKeyServer::keyQtToSymX(keyQt, &sym)) {
+        return {};
+    }
+    std::vector<uint32_t> keys;
+
+    if (keyQt & Qt::ShiftModifier) {
+        keys.push_back(KEY_LEFTSHIFT + 8);
+    }
+    if (keyQt & Qt::ControlModifier) {
+        keys.push_back(KEY_LEFTCTRL + 8);
+    }
+    if (keyQt & Qt::AltModifier) {
+        keys.push_back(KEY_LEFTALT + 8);
+    }
+    if (keyQt & Qt::MetaModifier) {
+        keys.push_back(KEY_LEFTMETA + 8);
+    }
+
+    for (xkb_keycode_t keyCode = xkb_keymap_min_keycode(m_keymap); keyCode <= xkb_keymap_max_keycode(m_keymap); ++keyCode) {
+        xkb_keysym_t candidate = xkb_state_key_get_one_sym(m_state, keyCode);
+        // keyQtToSymX returns the uppercase variant
+        if (candidate == static_cast<xkb_keysym_t>(sym) || QXkbCommon::qxkbcommon_xkb_keysym_to_upper(candidate) == static_cast<xkb_keysym_t>(sym)) {
+            keys.push_back(keyCode);
+            return keys;
+        }
+    }
+
+    return {};
+}
 }

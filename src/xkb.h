@@ -104,6 +104,8 @@ public:
     void setSeat(KWaylandServer::SeatInterface *seat);
     QByteArray keymapContents() const;
 
+    std::vector<uint32_t> qtKeyToXkbKeyCodes(int keyQt);
+
 Q_SIGNALS:
     void ledsChanged(const LEDs &leds);
     void modifierStateChanged();
