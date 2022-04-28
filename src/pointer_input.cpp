@@ -75,7 +75,7 @@ uint32_t qtMouseButtonToButton(Qt::MouseButton button)
     return s_buttonToQtMouseButton.key(button);
 }
 
-static Qt::MouseButton buttonToQtMouseButton(uint32_t button)
+Qt::MouseButton buttonToQtMouseButton(uint32_t button)
 {
     // all other values get mapped to ExtraButton24
     // this is actually incorrect but doesn't matter in our usage

@@ -41,6 +41,7 @@ class DecoratedClientImpl;
 }
 
 uint32_t qtMouseButtonToButton(Qt::MouseButton button);
+Qt::MouseButton KWIN_EXPORT buttonToQtMouseButton(uint32_t button);
 
 class KWIN_EXPORT PointerInputRedirection : public InputDeviceHandler
 {
