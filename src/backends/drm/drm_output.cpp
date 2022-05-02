@@ -43,74 +43,86 @@
 namespace KWin
 {
 
-DrmOutput::DrmOutput(DrmPipeline *pipeline)
-    : DrmAbstractOutput(pipeline->connector()->gpu())
-    , m_pipeline(pipeline)
-    , m_connector(pipeline->connector())
-    , m_renderOutput(std::make_unique<DrmRenderOutput>(this, pipeline))
+DrmOutput::DrmOutput(const QVector<DrmConnector *> &connectors)
+    : DrmAbstractOutput(connectors.first()->gpu())
+    , m_connectors(connectors)
 {
-    m_pipeline->setOutput(this);
-    const auto conn = m_pipeline->connector();
-    m_renderLoop->setRefreshRate(m_pipeline->mode()->refreshRate());
-
+    const auto first = connectors.first();
     Capabilities capabilities = Capability::Dpms;
-    if (conn->hasOverscan()) {
+    if (first->hasOverscan() && connectors.size() == 1) {
         capabilities |= Capability::Overscan;
-        setOverscanInternal(conn->overscan());
+        setOverscanInternal(first->overscan());
     }
-    if (conn->vrrCapable()) {
+    if (std::all_of(connectors.begin(), connectors.end(), [](const auto &c) {
+            return c->vrrCapable();
+        })) {
         capabilities |= Capability::Vrr;
         setVrrPolicy(RenderLoop::VrrPolicy::Automatic);
     }
-    if (conn->hasRgbRange()) {
+    if (std::all_of(connectors.begin(), connectors.end(), [](const auto &c) {
+            return c->hasRgbRange();
+        })) {
         capabilities |= Capability::RgbRange;
-        setRgbRangeInternal(conn->rgbRange());
+        setRgbRangeInternal(first->rgbRange());
     }
 
-    const Edid *edid = conn->edid();
+    const Edid *edid = first->edid();
 
     setInformation(Information{
-        .name = conn->connectorName(),
+        .name = first->connectorName(),
         .manufacturer = edid->manufacturerString(),
-        .model = conn->modelName(),
+        .model = first->modelName(),
         .serialNumber = edid->serialNumber(),
         .eisaId = edid->eisaId(),
-        .physicalSize = conn->physicalSize(),
+        .physicalSize = first->physicalSize(),
         .edid = edid->raw(),
-        .subPixel = conn->subpixel(),
+        .subPixel = first->subpixel(),
         .capabilities = capabilities,
-        .internal = conn->isInternal(),
+        .internal = first->isInternal(),
     });
 
     const QList<QSharedPointer<OutputMode>> modes = getModes();
-    QSharedPointer<OutputMode> currentMode = m_pipeline->mode();
-    if (!currentMode) {
+    QSharedPointer<OutputMode> currentMode = first->pipeline()->mode();
+    if (!currentMode || connectors.size() > 1) {
         currentMode = modes.constFirst();
     }
     setModesInternal(modes, currentMode);
+    m_renderLoop->setRefreshRate(currentMode->refreshRate());
 
     m_turnOffTimer.setSingleShot(true);
     m_turnOffTimer.setInterval(dimAnimationTime());
     connect(&m_turnOffTimer, &QTimer::timeout, this, [this] {
         setDrmDpmsMode(DpmsMode::Off);
     });
+
+    for (const auto &conn : connectors) {
+        m_renderOutputs << QSharedPointer<DrmRenderOutput>::create(this, conn->pipeline());
+        m_pipelines << conn->pipeline();
+        conn->pipeline()->setOutput(this);
+    }
 }
 
 DrmOutput::~DrmOutput()
 {
-    m_pipeline->setOutput(nullptr);
+    for (const auto &pipeline : qAsConst(m_pipelines)) {
+        pipeline->setOutput(nullptr);
+    }
 }
 
 QList<QSharedPointer<OutputMode>> DrmOutput::getModes() const
 {
-    const auto drmModes = m_pipeline->connector()->modes();
+    if (m_connectors.size() == 1) {
+        const auto drmModes = m_connectors.first()->modes();
 
-    QList<QSharedPointer<OutputMode>> ret;
-    ret.reserve(drmModes.count());
-    for (const QSharedPointer<DrmConnectorMode> &drmMode : drmModes) {
-        ret.append(drmMode);
+        QList<QSharedPointer<OutputMode>> ret;
+        ret.reserve(drmModes.count());
+        for (const QSharedPointer<DrmConnectorMode> &drmMode : drmModes) {
+            ret.append(drmMode);
+        }
+        return ret;
+    } else {
+        return {QSharedPointer<OutputMode>::create(m_connectors.first()->totalTiledOutputSize(), m_connectors.first()->modes().constFirst()->refreshRate(), OutputMode::Flag::Preferred)};
     }
-    return ret;
 }
 
 void DrmOutput::updateEnablement(bool enable)
@@ -147,9 +159,11 @@ bool DrmOutput::setDrmDpmsMode(DpmsMode mode)
         setDpmsModeInternal(mode);
         return true;
     }
-    m_pipeline->setActive(active);
-    if (DrmPipeline::commitPipelines({m_pipeline}, active ? DrmPipeline::CommitMode::Test : DrmPipeline::CommitMode::CommitModeset)) {
-        m_pipeline->applyPendingChanges();
+    for (const auto &pipeline : qAsConst(m_pipelines)) {
+        pipeline->setActive(active);
+    }
+    if (DrmPipeline::commitPipelines(m_pipelines, active ? DrmPipeline::CommitMode::Test : DrmPipeline::CommitMode::CommitModeset)) {
+        applyPipelines();
         setDpmsModeInternal(mode);
         if (active) {
             m_renderLoop->uninhibit();
@@ -164,7 +178,7 @@ bool DrmOutput::setDrmDpmsMode(DpmsMode mode)
         return true;
     } else {
         qCWarning(KWIN_DRM) << "Setting dpms mode failed!";
-        m_pipeline->revertPendingChanges();
+        revertPipelines();
         if (isEnabled() && isActive && !active) {
             m_gpu->platform()->checkOutputsAreOn();
         }
@@ -201,22 +215,28 @@ void DrmOutput::updateModes()
 {
     const QList<QSharedPointer<OutputMode>> modes = getModes();
 
-    if (m_pipeline->crtc()) {
-        const auto currentMode = m_pipeline->connector()->findMode(m_pipeline->crtc()->queryCurrentMode());
-        if (currentMode != m_pipeline->mode()) {
-            // DrmConnector::findCurrentMode might fail
-            m_pipeline->setMode(currentMode ? currentMode : m_pipeline->connector()->modes().constFirst());
+    if (m_pipelines.constFirst()->crtc()) {
+        bool needsCommit = false;
+        for (const auto &pipeline : qAsConst(m_pipelines)) {
+            const auto currentMode = pipeline->connector()->findMode(pipeline->crtc()->queryCurrentMode());
+            if (currentMode != pipeline->mode()) {
+                // DrmConnector::findCurrentMode might fail
+                pipeline->setMode(currentMode ? currentMode : pipeline->connector()->modes().constFirst());
+                needsCommit = true;
+            }
+        }
+        if (needsCommit) {
             if (m_gpu->testPendingConfiguration()) {
-                m_pipeline->applyPendingChanges();
-                m_renderLoop->setRefreshRate(m_pipeline->mode()->refreshRate());
+                applyPipelines();
+                m_renderLoop->setRefreshRate(m_pipelines.constFirst()->mode()->refreshRate());
             } else {
                 qCWarning(KWIN_DRM) << "Setting changed mode failed!";
-                m_pipeline->revertPendingChanges();
+                revertPipelines();
             }
         }
     }
 
-    QSharedPointer<OutputMode> currentMode = m_pipeline->mode();
+    QSharedPointer<OutputMode> currentMode = m_pipelines.constFirst()->mode();
     if (!currentMode) {
         currentMode = modes.constFirst();
     }
@@ -227,17 +247,27 @@ void DrmOutput::updateModes()
 bool DrmOutput::present()
 {
     RenderLoopPrivate *renderLoopPrivate = RenderLoopPrivate::get(m_renderLoop);
-    if (m_pipeline->syncMode() != renderLoopPrivate->presentMode) {
-        m_pipeline->setSyncMode(renderLoopPrivate->presentMode);
-        if (DrmPipeline::commitPipelines({m_pipeline}, DrmPipeline::CommitMode::Test)) {
-            m_pipeline->applyPendingChanges();
+    bool needsTest = false;
+    for (const auto &pipeline : qAsConst(m_pipelines)) {
+        if (pipeline->syncMode() != renderLoopPrivate->presentMode) {
+            pipeline->setSyncMode(renderLoopPrivate->presentMode);
+            needsTest = true;
+        }
+    }
+    if (needsTest) {
+        if (DrmPipeline::commitPipelines(m_pipelines, DrmPipeline::CommitMode::Test)) {
+            applyPipelines();
         } else {
-            m_pipeline->revertPendingChanges();
+            revertPipelines();
         }
     }
     bool modeset = gpu()->needsModeset();
-    if (modeset ? DrmPipeline::maybeModeset({m_pipeline}) : DrmPipeline::presentPipelines({m_pipeline})) {
-        Q_EMIT outputChange(m_pipeline->primaryLayer()->currentDamage());
+    if (modeset ? DrmPipeline::maybeModeset(m_pipelines) : DrmPipeline::presentPipelines(m_pipelines)) {
+        QRegion damage;
+        for (const auto &pipeline : qAsConst(m_pipelines)) {
+            damage |= pipeline->primaryLayer()->currentDamage();
+        }
+        Q_EMIT outputChange(damage);
         return true;
     } else if (!modeset) {
         qCWarning(KWIN_DRM) << "Presentation failed!" << strerror(errno);
@@ -246,14 +276,14 @@ bool DrmOutput::present()
     return false;
 }
 
-DrmConnector *DrmOutput::connector() const
+QVector<DrmConnector *> DrmOutput::connectors() const
 {
-    return m_connector;
+    return m_connectors;
 }
 
-DrmPipeline *DrmOutput::pipeline() const
+QVector<DrmPipeline *> DrmOutput::pipelines() const
 {
-    return m_pipeline;
+    return m_pipelines;
 }
 
 bool DrmOutput::queueChanges(const OutputConfiguration &config)
@@ -262,90 +292,145 @@ bool DrmOutput::queueChanges(const OutputConfiguration &config)
     static int envOnlySoftwareRotations = qEnvironmentVariableIntValue("KWIN_DRM_SW_ROTATIONS_ONLY", &valid) == 1 || !valid;
 
     const auto props = config.constChangeSet(this);
-    m_pipeline->setActive(props->enabled);
-    const auto modelist = m_connector->modes();
-    const auto it = std::find_if(modelist.begin(), modelist.end(), [&props](const auto &mode) {
-        return mode->size() == props->modeSize && mode->refreshRate() == props->refreshRate;
-    });
-    if (it == modelist.end()) {
-        qCWarning(KWIN_DRM).nospace() << "Could not find mode " << props->modeSize << "@" << props->refreshRate << " for output " << this;
-        return false;
+    for (const auto &pipeline : qAsConst(m_pipelines)) {
+        pipeline->setActive(props->enabled);
+        const auto modelist = pipeline->connector()->modes();
+        if (m_pipelines.size() == 1) {
+            const auto it = std::find_if(modelist.begin(), modelist.end(), [&props](const auto &mode) {
+                return mode->size() == props->modeSize && mode->refreshRate() == props->refreshRate;
+            });
+            if (it == modelist.end()) {
+                qCWarning(KWIN_DRM).nospace() << "Could not find mode " << props->modeSize << "@" << props->refreshRate << " for output " << this;
+                return false;
+            }
+            pipeline->setMode(*it);
+        } else {
+            pipeline->setMode(pipeline->connector()->modes().constFirst());
+        }
+        pipeline->setOverscan(props->overscan);
+        pipeline->setRgbRange(props->rgbRange);
+        pipeline->setRenderOrientation(outputToPlaneTransform(props->transform));
+        if (!envOnlySoftwareRotations && m_gpu->atomicModeSetting()) {
+            pipeline->setBufferOrientation(pipeline->renderOrientation());
+        }
+        pipeline->setEnable(props->enabled);
     }
-    m_pipeline->setMode(*it);
-    m_pipeline->setOverscan(props->overscan);
-    m_pipeline->setRgbRange(props->rgbRange);
-    m_pipeline->setRenderOrientation(outputToPlaneTransform(props->transform));
-    if (!envOnlySoftwareRotations && m_gpu->atomicModeSetting()) {
-        m_pipeline->setBufferOrientation(m_pipeline->renderOrientation());
-    }
-    m_pipeline->setEnable(props->enabled);
     return true;
 }
 
 void DrmOutput::applyQueuedChanges(const OutputConfiguration &config)
 {
-    if (!m_connector->isConnected()) {
+    if (!std::all_of(m_connectors.begin(), m_connectors.end(), [](const auto &c) {
+            return c->isConnected();
+        })) {
         return;
     }
     Q_EMIT aboutToChange();
-    m_pipeline->applyPendingChanges();
+    applyPipelines();
 
     auto props = config.constChangeSet(this);
-    setEnabled(props->enabled && m_pipeline->crtc());
-    if (!isEnabled() && m_pipeline->needsModeset()) {
+    setEnabled(props->enabled && m_pipelines.constFirst()->crtc());
+    bool modeset = std::any_of(m_pipelines.constBegin(), m_pipelines.constEnd(), [](const auto &pipeline) {
+        return pipeline->needsModeset();
+    });
+    if (!isEnabled() && modeset) {
         m_gpu->maybeModeset();
     }
     moveTo(props->pos);
     setScale(props->scale);
     setTransformInternal(props->transform);
 
-    const auto mode = m_pipeline->mode();
-    setCurrentModeInternal(mode);
-    m_renderLoop->setRefreshRate(mode->refreshRate());
-    setOverscanInternal(m_pipeline->overscan());
-    setRgbRangeInternal(m_pipeline->rgbRange());
+    if (m_connectors.size() == 1) {
+        const auto mode = m_pipelines.constFirst()->mode();
+        setCurrentModeInternal(mode);
+        m_renderLoop->setRefreshRate(mode->refreshRate());
+    }
+    setOverscanInternal(props->overscan);
+    setRgbRangeInternal(props->rgbRange);
     setVrrPolicy(props->vrrPolicy);
 
     m_renderLoop->scheduleRepaint();
     Q_EMIT changed();
 
-    m_renderOutput->updateCursor();
+    for (const auto &renderOutput : qAsConst(m_renderOutputs)) {
+        static_cast<DrmRenderOutput *>(renderOutput.get())->updateCursor();
+    }
 }
 
 void DrmOutput::revertQueuedChanges()
 {
-    m_pipeline->revertPendingChanges();
+    revertPipelines();
 }
 
 void DrmOutput::setColorTransformation(const QSharedPointer<ColorTransformation> &transformation)
 {
-    m_pipeline->setColorTransformation(transformation);
-    if (DrmPipeline::commitPipelines({m_pipeline}, DrmPipeline::CommitMode::Test)) {
-        m_pipeline->applyPendingChanges();
+    for (const auto &pipeline : qAsConst(m_pipelines)) {
+        pipeline->setColorTransformation(transformation);
+    }
+    if (DrmPipeline::commitPipelines(m_pipelines, DrmPipeline::CommitMode::Test)) {
+        applyPipelines();
         m_renderLoop->scheduleRepaint();
     } else {
-        m_pipeline->revertPendingChanges();
+        revertPipelines();
     }
 }
 
-RenderOutput *DrmOutput::renderOutput() const
+QVector<QSharedPointer<RenderOutput>> DrmOutput::renderOutputs() const
 {
-    return m_renderOutput.get();
+    return m_renderOutputs;
+}
+
+void DrmOutput::applyPipelines()
+{
+    for (const auto &pipeline : qAsConst(m_pipelines)) {
+        pipeline->applyPendingChanges();
+    }
+}
+
+void DrmOutput::revertPipelines()
+{
+    for (const auto &pipeline : qAsConst(m_pipelines)) {
+        pipeline->revertPendingChanges();
+    }
+}
+
+void DrmOutput::pageFlipped(std::chrono::nanoseconds timestamp) const
+{
+    bool allFlipped = std::none_of(m_pipelines.constBegin(), m_pipelines.constEnd(), [](const auto &pipeline) {
+        return pipeline->pageflipPending();
+    });
+    if (allFlipped) {
+        DrmAbstractOutput::pageFlipped(timestamp);
+    }
 }
 
 void DrmOutput::updateCursor()
 {
-    m_renderOutput->updateCursor();
+    for (const auto &renderOutput : qAsConst(m_renderOutputs)) {
+        static_cast<DrmRenderOutput *>(renderOutput.get())->updateCursor();
+    }
 }
 
 DrmRenderOutput::DrmRenderOutput(DrmOutput *output, DrmPipeline *pipeline)
     : m_output(output)
     , m_pipeline(pipeline)
 {
-    connect(output, &DrmOutput::geometryChanged, this, &RenderOutput::geometryChanged);
+    updateGeometry();
+    connect(output, &DrmOutput::geometryChanged, this, &DrmRenderOutput::updateGeometry);
     connect(Cursors::self(), &Cursors::currentCursorChanged, this, &DrmRenderOutput::updateCursor);
     connect(Cursors::self(), &Cursors::hiddenChanged, this, &DrmRenderOutput::updateCursor);
     connect(Cursors::self(), &Cursors::positionChanged, this, &DrmRenderOutput::moveCursor);
+}
+
+void DrmRenderOutput::updateGeometry()
+{
+    const auto geom = m_output->geometry();
+    int x = geom.x() + geom.width() * m_pipeline->connector()->tilePosition().x();
+    int y = geom.y() + geom.height() * m_pipeline->connector()->tilePosition().y();
+    int width = geom.width() * m_pipeline->connector()->tileSize().width();
+    int height = geom.height() * m_pipeline->connector()->tileSize().height();
+    m_geometry = QRect(x, y, width, height);
+    Q_EMIT geometryChanged();
 }
 
 DrmOutputLayer *DrmRenderOutput::outputLayer() const
@@ -355,7 +440,7 @@ DrmOutputLayer *DrmRenderOutput::outputLayer() const
 
 QRect DrmRenderOutput::geometry() const
 {
-    return m_output->geometry();
+    return m_geometry;
 }
 
 Output *DrmRenderOutput::platformOutput() const

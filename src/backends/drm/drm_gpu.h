@@ -93,8 +93,8 @@ Q_SIGNALS:
 
 private:
     void dispatchEvents();
-    DrmOutput *findOutput(quint32 connector);
-    DrmLeaseOutput *findLeaseOutput(quint32 connector);
+    DrmOutput *findOutput(DrmConnector *connector);
+    DrmLeaseOutput *findLeaseOutput(DrmConnector *connector);
     void removeOutput(DrmOutput *output);
     void removeLeaseOutput(DrmLeaseOutput *output);
     void initDrmResources();

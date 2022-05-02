@@ -35,7 +35,7 @@ public:
     ~DrmVirtualOutput() override;
 
     bool present() override;
-    RenderOutput *renderOutput() const override;
+    QVector<QSharedPointer<RenderOutput>> renderOutputs() const override;
     void recreateSurface();
     DrmOutputLayer *primaryLayer() const;
 
@@ -47,7 +47,7 @@ private:
     QSharedPointer<DrmOutputLayer> m_primaryLayer;
     bool m_pageFlipPending = true;
 
-    const std::unique_ptr<SimpleRenderOutput> m_renderOutput;
+    const QSharedPointer<SimpleRenderOutput> m_renderOutput;
     SoftwareVsyncMonitor *m_vsyncMonitor;
 };
 

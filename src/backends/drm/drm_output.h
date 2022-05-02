@@ -36,15 +36,16 @@ class KWIN_EXPORT DrmOutput : public DrmAbstractOutput
 {
     Q_OBJECT
 public:
-    DrmOutput(DrmPipeline *pipeline);
+    DrmOutput(const QVector<DrmConnector *> &connectors);
     ~DrmOutput() override;
 
     bool present() override;
     void setColorTransformation(const QSharedPointer<ColorTransformation> &transformation) override;
-    RenderOutput *renderOutput() const override;
+    QVector<QSharedPointer<RenderOutput>> renderOutputs() const override;
+    void pageFlipped(std::chrono::nanoseconds timestamp) const override;
 
-    DrmConnector *connector() const;
-    DrmPipeline *pipeline() const;
+    QVector<DrmConnector *> connectors() const;
+    QVector<DrmPipeline *> pipelines() const;
 
     bool queueChanges(const OutputConfiguration &config);
     void applyQueuedChanges(const OutputConfiguration &config);
@@ -56,13 +57,14 @@ private:
     void updateEnablement(bool enable) override;
     bool setDrmDpmsMode(DpmsMode mode);
     void setDpmsMode(DpmsMode mode) override;
+    void applyPipelines();
+    void revertPipelines();
 
     QList<QSharedPointer<OutputMode>> getModes() const;
 
-    DrmPipeline *m_pipeline;
-    DrmConnector *m_connector;
-
-    std::unique_ptr<DrmRenderOutput> m_renderOutput;
+    const QVector<DrmConnector *> m_connectors;
+    QVector<DrmPipeline *> m_pipelines;
+    QVector<QSharedPointer<RenderOutput>> m_renderOutputs;
     QTimer m_turnOffTimer;
 };
 
@@ -78,6 +80,7 @@ public:
     void updateCursor();
 
 private:
+    void updateGeometry();
     void moveCursor();
     void renderCursorOpengl(const QSize &cursorSize);
     void renderCursorQPainter();
@@ -87,6 +90,7 @@ private:
     bool m_cursorTextureDirty = true;
     std::unique_ptr<GLTexture> m_cursorTexture;
 
+    QRect m_geometry;
     DrmOutput *const m_output;
     DrmPipeline *const m_pipeline;
 };

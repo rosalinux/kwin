@@ -22,7 +22,7 @@ namespace KWin
 
 DrmVirtualOutput::DrmVirtualOutput(const QString &name, DrmGpu *gpu, const QSize &size, Type type)
     : DrmAbstractOutput(gpu)
-    , m_renderOutput(new SimpleRenderOutput(this, true))
+    , m_renderOutput(QSharedPointer<SimpleRenderOutput>::create(this, true))
     , m_vsyncMonitor(SoftwareVsyncMonitor::create(this))
 {
     connect(m_vsyncMonitor, &VsyncMonitor::vblankOccurred, this, &DrmVirtualOutput::vblank);
@@ -75,9 +75,9 @@ void DrmVirtualOutput::recreateSurface()
     m_primaryLayer = m_gpu->platform()->renderBackend()->createLayer(this);
 }
 
-RenderOutput *DrmVirtualOutput::renderOutput() const
+QVector<QSharedPointer<RenderOutput>> DrmVirtualOutput::renderOutputs() const
 {
-    return m_renderOutput.get();
+    return {m_renderOutput};
 }
 
 DrmOutputLayer *DrmVirtualOutput::primaryLayer() const

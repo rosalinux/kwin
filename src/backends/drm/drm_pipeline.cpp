@@ -160,6 +160,13 @@ bool DrmPipeline::commitPipelinesAtomic(const QVector<DrmPipeline *> &pipelines,
     for (const auto &pipeline : pipelines) {
         pipeline->atomicCommitSuccessful(mode);
     }
+    if (mode == CommitMode::CommitModeset) {
+        for (const auto &pipeline : pipelines) {
+            if (pipeline->activePending()) {
+                pipeline->pageFlipped(std::chrono::steady_clock::now().time_since_epoch());
+            }
+        }
+    }
     for (const auto &obj : unusedObjects) {
         obj->commitPending();
         if (mode != CommitMode::Test) {
@@ -302,9 +309,6 @@ void DrmPipeline::atomicCommitSuccessful(CommitMode mode)
             }
         }
         m_current = m_pending;
-        if (mode == CommitMode::CommitModeset && activePending()) {
-            pageFlipped(std::chrono::steady_clock::now().time_since_epoch());
-        }
     }
 }
 
