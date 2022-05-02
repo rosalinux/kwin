@@ -251,6 +251,7 @@ bool DrmGpu::updateOutputs()
 
     // check for added and removed connectors
     QVector<DrmOutput *> addedOutputs;
+    QVector<DrmConnector *> addedConnectors;
     QVector<DrmConnector *> removedConnectors = m_connectors;
     for (int i = 0; i < resources->count_connectors; ++i) {
         const uint32_t currentConnector = resources->connectors[i];
@@ -261,7 +262,7 @@ bool DrmGpu::updateOutputs()
         bool updateSuccess = true;
         if (!conn) {
             conn = new DrmConnector(this, currentConnector);
-            if (!conn->init()) {
+            if (!conn->isConnected() || !conn->init()) {
                 delete conn;
                 continue;
             }
@@ -273,23 +274,19 @@ bool DrmGpu::updateOutputs()
             updateSuccess = false;
         }
         if (conn->isConnected() && updateSuccess) {
-            if (conn->isNonDesktop() ? !findLeaseOutput(conn) : !findOutput(conn)) {
-                qCDebug(KWIN_DRM, "New %soutput on GPU %s: %s", conn->isNonDesktop() ? "non-desktop " : "", qPrintable(m_devNode), qPrintable(conn->modelName()));
-                const auto pipeline = conn->pipeline();
-                m_pipelines << pipeline;
-                if (conn->isNonDesktop()) {
-                    auto leaseOutput = new DrmLeaseOutput(pipeline, m_leaseDevice);
-                    m_leaseOutputs << leaseOutput;
-                } else {
-                    auto output = new DrmOutput({conn});
-                    m_drmOutputs << output;
-                    m_outputs << output;
-                    addedOutputs << output;
-                    Q_EMIT outputAdded(output);
+            const auto output = conn->isNonDesktop() ? nullptr : findOutput(conn);
+            const auto leaseOutput = conn->isNonDesktop() ? findLeaseOutput(conn) : nullptr;
+            if (!output && !leaseOutput) {
+                addedConnectors << conn;
+            } else if (output && conn->isTiled()) {
+                const auto it = std::find_if(addedConnectors.constBegin(), addedConnectors.constEnd(), [conn](const auto &connector) {
+                    return connector->tileGroup() == conn->tileGroup();
+                });
+                if (it != addedConnectors.constEnd()) {
+                    // new connector added to tiled output, DrmOutput needs to be re-created
+                    removeOutput(output);
+                    addedConnectors << conn;
                 }
-                pipeline->setLayers(m_platform->renderBackend()->createPrimaryLayer(pipeline), m_platform->renderBackend()->createCursorLayer(pipeline));
-                pipeline->setActive(!conn->isNonDesktop());
-                pipeline->applyPendingChanges();
             }
         } else if (auto output = findOutput(conn)) {
             removeOutput(output);
@@ -297,6 +294,39 @@ bool DrmGpu::updateOutputs()
             removeLeaseOutput(leaseOutput);
         }
     }
+    std::sort(addedConnectors.begin(), addedConnectors.end(), [](const auto &connector1, const auto &connector2) {
+        return connector1->tileGroup() < connector2->tileGroup();
+    });
+    while (!addedConnectors.isEmpty()) {
+        const auto conn = addedConnectors.takeLast();
+        qCDebug(KWIN_DRM, "New %soutput on GPU %s: %s", conn->isNonDesktop() ? "non-desktop " : "", qPrintable(m_devNode), qPrintable(conn->modelName()));
+        QVector<DrmConnector *> conns = {conn};
+        if (conn->isNonDesktop()) {
+            auto leaseOutput = new DrmLeaseOutput(conn->pipeline(), m_leaseDevice);
+            m_leaseOutputs << leaseOutput;
+        } else {
+            if (conn->isTiled()) {
+                qCDebug(KWIN_DRM) << "connector" << conn->connectorName() << "is tiled";
+                while (!addedConnectors.isEmpty() && addedConnectors.last()->tileGroup() == conn->tileGroup()) {
+                    conns << addedConnectors.takeLast();
+                    qCDebug(KWIN_DRM) << "added connector" << conn->connectorName() << "to the tiled display";
+                }
+            }
+            const auto output = new DrmOutput(conns);
+            m_drmOutputs << output;
+            m_outputs << output;
+            addedOutputs << output;
+            Q_EMIT outputAdded(output);
+        }
+        for (const auto &conn : qAsConst(conns)) {
+            const auto pipeline = conn->pipeline();
+            pipeline->setLayers(m_platform->renderBackend()->createPrimaryLayer(pipeline), m_platform->renderBackend()->createCursorLayer(pipeline));
+            pipeline->setActive(!conn->isNonDesktop());
+            pipeline->applyPendingChanges();
+            m_pipelines << pipeline;
+        }
+    }
+
     for (const auto &connector : qAsConst(removedConnectors)) {
         if (auto output = findOutput(connector)) {
             removeOutput(output);
