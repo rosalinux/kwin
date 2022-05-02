@@ -132,11 +132,6 @@ std::chrono::milliseconds Output::dimAnimationTime()
     return std::chrono::milliseconds(KSharedConfig::openConfig()->group("Effect-Kscreen").readEntry("Duration", 250));
 }
 
-bool Output::usesSoftwareCursor() const
-{
-    return true;
-}
-
 QRect Output::mapFromGlobal(const QRect &rect) const
 {
     return rect.translated(-geometry().topLeft());

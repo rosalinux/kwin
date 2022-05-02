@@ -49,7 +49,7 @@ Q_SIGNALS:
 class KWIN_EXPORT SimpleRenderOutput : public RenderOutput
 {
 public:
-    SimpleRenderOutput(Output *output);
+    SimpleRenderOutput(Output *output, bool useSoftwareCursor);
 
     QRect geometry() const override;
     Output *platformOutput() const override;
@@ -58,6 +58,7 @@ public:
 
 private:
     Output *const m_output;
+    const bool m_useSoftwareCursor;
 };
 
 }

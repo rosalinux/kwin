@@ -50,10 +50,7 @@ public:
     void applyQueuedChanges(const OutputConfiguration &config);
     void revertQueuedChanges();
     void updateModes();
-
-    bool usesSoftwareCursor() const override;
     void updateCursor();
-    void moveCursor();
 
 private:
     void updateEnablement(bool enable) override;
@@ -62,17 +59,10 @@ private:
 
     QList<QSharedPointer<OutputMode>> getModes() const;
 
-    void renderCursorOpengl(const QSize &cursorSize);
-    void renderCursorQPainter();
-
     DrmPipeline *m_pipeline;
     DrmConnector *m_connector;
 
     std::unique_ptr<DrmRenderOutput> m_renderOutput;
-    bool m_setCursorSuccessful = false;
-    bool m_moveCursorSuccessful = false;
-    bool m_cursorTextureDirty = true;
-    std::unique_ptr<GLTexture> m_cursorTexture;
     QTimer m_turnOffTimer;
 };
 
@@ -85,8 +75,18 @@ public:
     QRect geometry() const override;
     Output *platformOutput() const override;
     bool usesSoftwareCursor() const override;
+    void updateCursor();
 
 private:
+    void moveCursor();
+    void renderCursorOpengl(const QSize &cursorSize);
+    void renderCursorQPainter();
+
+    bool m_setCursorSuccessful = false;
+    bool m_moveCursorSuccessful = false;
+    bool m_cursorTextureDirty = true;
+    std::unique_ptr<GLTexture> m_cursorTexture;
+
     DrmOutput *const m_output;
     DrmPipeline *const m_pipeline;
 };

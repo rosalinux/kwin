@@ -57,11 +57,6 @@ void X11Output::setGammaRampSize(int size)
     m_gammaRampSize = size;
 }
 
-bool X11Output::usesSoftwareCursor() const
-{
-    return false;
-}
-
 void X11Output::setMode(const QSize &size, int refreshRate)
 {
     auto mode = QSharedPointer<OutputMode>::create(size, refreshRate);

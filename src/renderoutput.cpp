@@ -37,8 +37,9 @@ QRect RenderOutput::relativePixelGeometry() const
     return geometry();
 }
 
-SimpleRenderOutput::SimpleRenderOutput(Output *output)
+SimpleRenderOutput::SimpleRenderOutput(Output *output, bool useSoftwareCursor)
     : m_output(output)
+    , m_useSoftwareCursor(useSoftwareCursor)
 {
     connect(output, &Output::geometryChanged, this, &RenderOutput::geometryChanged);
 }
@@ -55,7 +56,7 @@ Output *SimpleRenderOutput::platformOutput() const
 
 bool SimpleRenderOutput::usesSoftwareCursor() const
 {
-    return m_output->usesSoftwareCursor();
+    return m_useSoftwareCursor;
 }
 
 QRect SimpleRenderOutput::relativePixelGeometry() const

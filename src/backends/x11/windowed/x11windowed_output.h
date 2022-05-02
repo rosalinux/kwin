@@ -69,8 +69,6 @@ public:
      */
     QPointF mapFromGlobal(const QPointF &pos) const;
 
-    bool usesSoftwareCursor() const override;
-
     RenderOutput *renderOutput() const;
 
 private:

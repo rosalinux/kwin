@@ -211,8 +211,6 @@ public:
     Q_ENUM(Transform)
     Transform transform() const;
 
-    virtual bool usesSoftwareCursor() const;
-
     void moveTo(const QPoint &pos);
     void setScale(qreal scale);
 

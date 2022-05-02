@@ -30,8 +30,6 @@ class KWIN_EXPORT X11Output : public Output
 public:
     explicit X11Output(QObject *parent = nullptr);
 
-    bool usesSoftwareCursor() const override;
-
     RenderLoop *renderLoop() const override;
     void setRenderLoop(RenderLoop *loop);
 
