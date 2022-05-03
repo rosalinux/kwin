@@ -92,11 +92,11 @@ private:
     QPointF forcePositivePosition(QPointF p) const;
     void optimizePath(); // Find the best path to target desktop
 
-    void startAnimation(int old, int current, EffectWindow *movingWindow = nullptr);
+    void startAnimation(const QPointF &start, const QPointF &end, EffectWindow *movingWindow = nullptr);
     void prepareSwitching();
     void finishedSwitching();
+    QPointF currentPosition() const;
 
-private:
     int m_hGap;
     int m_vGap;
     bool m_slideDocks;
@@ -111,15 +111,11 @@ private:
 
     State m_state = State::Inactive;
     TimeLine m_timeLine;
-
-    // When the desktop isn't desktopChanging(), these two variables are used to control the animation path.
-    // They use desktops as a unit.
-    QPointF m_startPos;
-    QPointF m_endPos;
-
     EffectWindow *m_movingWindow = nullptr;
     std::chrono::milliseconds m_lastPresentTime = std::chrono::milliseconds::zero();
-    QPointF m_currentPosition; // Should always be kept up to date with where on the grid we're seeing.
+    QPointF m_gesturePosition;
+    QPointF m_animationStartPosition;
+    QPointF m_animationEndPosition;
 
     struct
     {

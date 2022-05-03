@@ -43,8 +43,6 @@ SlideEffect::SlideEffect()
             this, &SlideEffect::finishedSwitching);
     connect(effects, &EffectsHandler::screenRemoved,
             this, &SlideEffect::finishedSwitching);
-
-    m_currentPosition = effects->desktopCoords(effects->currentDesktop());
 }
 
 SlideEffect::~SlideEffect()
@@ -89,6 +87,18 @@ inline QRegion buildClipRegion(const QPoint &pos, int w, int h)
     return r;
 }
 
+QPointF SlideEffect::currentPosition() const
+{
+    switch (m_state) {
+    case State::ActiveGesture:
+        return m_gesturePosition;
+    case State::ActiveAnimation:
+        return m_animationStartPosition + (m_animationEndPosition - m_animationStartPosition) * m_timeLine.value();
+    case State::Inactive:
+        Q_UNREACHABLE();
+    }
+}
+
 void SlideEffect::prePaintScreen(ScreenPrePaintData &data, std::chrono::milliseconds presentTime)
 {
     std::chrono::milliseconds timeDelta = std::chrono::milliseconds::zero();
@@ -98,26 +108,23 @@ void SlideEffect::prePaintScreen(ScreenPrePaintData &data, std::chrono::millisec
     m_lastPresentTime = presentTime;
     m_timeLine.update(timeDelta);
 
-    if (m_state == State::ActiveAnimation) {
-        m_currentPosition = m_startPos + (m_endPos - m_startPos) * m_timeLine.value();
-    }
-
     const int w = effects->desktopGridWidth();
     const int h = effects->desktopGridHeight();
 
     // Clipping
+    const QPointF position = currentPosition();
     m_paintCtx.visibleDesktops.clear();
     m_paintCtx.visibleDesktops.reserve(4); // 4 - maximum number of visible desktops
     bool includedX = false, includedY = false;
     for (int i = 1; i <= effects->numberOfDesktops(); i++) {
-        if (effects->desktopGridCoords(i).x() % w == (int)(m_currentPosition.x()) % w) {
+        if (effects->desktopGridCoords(i).x() % w == (int)(position.x()) % w) {
             includedX = true;
-        } else if (effects->desktopGridCoords(i).x() % w == ((int)(m_currentPosition.x()) + 1) % w) {
+        } else if (effects->desktopGridCoords(i).x() % w == ((int)(position.x()) + 1) % w) {
             includedX = true;
         }
-        if (effects->desktopGridCoords(i).y() % h == (int)(m_currentPosition.y()) % h) {
+        if (effects->desktopGridCoords(i).y() % h == (int)(position.y()) % h) {
             includedY = true;
-        } else if (effects->desktopGridCoords(i).y() % h == ((int)(m_currentPosition.y()) + 1) % h) {
+        } else if (effects->desktopGridCoords(i).y() % h == ((int)(position.y()) + 1) % h) {
             includedY = true;
         }
 
@@ -138,7 +145,7 @@ void SlideEffect::paintScreen(int mask, const QRegion &region, ScreenPaintData &
     const int h = effects->desktopGridHeight();
     bool wrappingX = false, wrappingY = false;
 
-    QPointF drawPosition = forcePositivePosition(m_currentPosition);
+    QPointF drawPosition = forcePositivePosition(currentPosition());
 
     if (wrap) {
         drawPosition = constrainToDrawableRange(drawPosition);
@@ -341,10 +348,8 @@ bool SlideEffect::shouldElevate(const EffectWindow *w) const
  * Called AFTER the gesture is released.
  * Sets up animation to round off to the new current desktop.
  */
-void SlideEffect::startAnimation(int old, int current, EffectWindow *movingWindow)
+void SlideEffect::startAnimation(const QPointF &start, const QPointF &end, EffectWindow *movingWindow)
 {
-    Q_UNUSED(old)
-
     if (m_state == State::Inactive) {
         prepareSwitching();
     }
@@ -353,14 +358,14 @@ void SlideEffect::startAnimation(int old, int current, EffectWindow *movingWindo
     m_movingWindow = movingWindow;
     m_timeLine.reset();
 
-    m_startPos = m_currentPosition;
-    m_endPos = effects->desktopGridCoords(current);
+    m_animationStartPosition = start;
+    m_animationEndPosition = end;
     if (effects->optionRollOverDesktops()) {
         optimizePath();
     }
 
     // Find an apropriate duration
-    QPointF distance = m_startPos - m_endPos;
+    QPointF distance = m_animationStartPosition - m_animationEndPosition;
     distance.setX(std::abs(distance.x()));
     distance.setY(std::abs(distance.y()));
     if (distance.x() < 1 && distance.y() < 1) {
@@ -411,17 +416,23 @@ void SlideEffect::finishedSwitching()
     m_state = State::Inactive;
     m_lastPresentTime = std::chrono::milliseconds::zero();
     effects->setActiveFullScreenEffect(nullptr);
-    m_currentPosition = effects->desktopGridCoords(effects->currentDesktop());
 }
 
 void SlideEffect::desktopChanged(int old, int current, EffectWindow *with)
 {
     if (effects->hasActiveFullScreenEffect() && effects->activeFullScreenEffect() != this) {
-        m_currentPosition = effects->desktopGridCoords(effects->currentDesktop());
         return;
     }
 
-    startAnimation(old, current, with);
+    // If we already slide, move from the current position to the target desktop, ignore `old`.
+    QPointF oldPosition;
+    if (m_state != State::Inactive) {
+        oldPosition = currentPosition();
+    } else {
+        oldPosition = effects->desktopGridCoords(old);
+    }
+
+    startAnimation(oldPosition, effects->desktopGridCoords(current), with);
 }
 
 void SlideEffect::desktopChanging(uint old, QPointF desktopOffset, EffectWindow *with)
@@ -439,13 +450,13 @@ void SlideEffect::desktopChanging(uint old, QPointF desktopOffset, EffectWindow 
 
     // Find desktop position based on animationDelta
     QPoint gridPos = effects->desktopGridCoords(old);
-    m_currentPosition.setX(gridPos.x() + desktopOffset.x());
-    m_currentPosition.setY(gridPos.y() + desktopOffset.y());
+    m_gesturePosition.setX(gridPos.x() + desktopOffset.x());
+    m_gesturePosition.setY(gridPos.y() + desktopOffset.y());
 
     if (effects->optionRollOverDesktops()) {
-        m_currentPosition = forcePositivePosition(m_currentPosition);
+        m_gesturePosition = forcePositivePosition(m_gesturePosition);
     } else {
-        m_currentPosition = moveInsideDesktopGrid(m_currentPosition);
+        m_gesturePosition = moveInsideDesktopGrid(m_gesturePosition);
     }
 
     effects->setActiveFullScreenEffect(this);
@@ -457,7 +468,7 @@ void SlideEffect::desktopChangingCancelled()
     // If the fingers have been lifted and the current desktop didn't change, start animation
     // to move back to the original virtual desktop.
     if (effects->activeFullScreenEffect() == this) {
-        startAnimation(effects->currentDesktop(), effects->currentDesktop(), nullptr);
+        startAnimation(currentPosition(), effects->desktopGridCoords(effects->currentDesktop()), nullptr);
     }
 }
 
@@ -514,50 +525,50 @@ void SlideEffect::optimizePath()
     int h = effects->desktopGridHeight();
 
     // Keep coordinates as low as possible
-    if (m_startPos.x() >= w && m_endPos.x() >= w) {
-        m_startPos.setX(fmod(m_startPos.x(), w));
-        m_endPos.setX(fmod(m_endPos.x(), w));
+    if (m_animationStartPosition.x() >= w && m_animationEndPosition.x() >= w) {
+        m_animationStartPosition.setX(fmod(m_animationStartPosition.x(), w));
+        m_animationEndPosition.setX(fmod(m_animationEndPosition.x(), w));
     }
-    if (m_startPos.y() >= h && m_endPos.y() >= h) {
-        m_startPos.setY(fmod(m_startPos.y(), h));
-        m_endPos.setY(fmod(m_endPos.y(), h));
+    if (m_animationStartPosition.y() >= h && m_animationEndPosition.y() >= h) {
+        m_animationStartPosition.setY(fmod(m_animationStartPosition.y(), h));
+        m_animationEndPosition.setY(fmod(m_animationEndPosition.y(), h));
     }
 
     // Is there is a shorter possible route?
     // If the x distance to be traveled is more than half the grid width, it's faster to wrap.
     // To avoid negative coordinates, take the lower coordinate and raise.
-    if (std::abs((m_startPos.x() - m_endPos.x())) > w / 2.0) {
-        if (m_startPos.x() < m_endPos.x()) {
-            while (m_startPos.x() < m_endPos.x()) {
-                m_startPos.setX(m_startPos.x() + w);
+    if (std::abs((m_animationStartPosition.x() - m_animationEndPosition.x())) > w / 2.0) {
+        if (m_animationStartPosition.x() < m_animationEndPosition.x()) {
+            while (m_animationStartPosition.x() < m_animationEndPosition.x()) {
+                m_animationStartPosition.setX(m_animationStartPosition.x() + w);
             }
         } else {
-            while (m_endPos.x() < m_startPos.x()) {
-                m_endPos.setX(m_endPos.x() + w);
+            while (m_animationEndPosition.x() < m_animationStartPosition.x()) {
+                m_animationEndPosition.setX(m_animationEndPosition.x() + w);
             }
         }
         // Keep coordinates as low as possible
-        if (m_startPos.x() >= w && m_endPos.x() >= w) {
-            m_startPos.setX(fmod(m_startPos.x(), w));
-            m_endPos.setX(fmod(m_endPos.x(), w));
+        if (m_animationStartPosition.x() >= w && m_animationEndPosition.x() >= w) {
+            m_animationStartPosition.setX(fmod(m_animationStartPosition.x(), w));
+            m_animationEndPosition.setX(fmod(m_animationEndPosition.x(), w));
         }
     }
 
     // Same for y
-    if (std::abs((m_endPos.y() - m_startPos.y())) > (double)h / (double)2) {
-        if (m_startPos.y() < m_endPos.y()) {
-            while (m_startPos.y() < m_endPos.y()) {
-                m_startPos.setY(m_startPos.y() + h);
+    if (std::abs((m_animationEndPosition.y() - m_animationStartPosition.y())) > (double)h / (double)2) {
+        if (m_animationStartPosition.y() < m_animationEndPosition.y()) {
+            while (m_animationStartPosition.y() < m_animationEndPosition.y()) {
+                m_animationStartPosition.setY(m_animationStartPosition.y() + h);
             }
         } else {
-            while (m_endPos.y() < m_startPos.y()) {
-                m_endPos.setY(m_endPos.y() + h);
+            while (m_animationEndPosition.y() < m_animationStartPosition.y()) {
+                m_animationEndPosition.setY(m_animationEndPosition.y() + h);
             }
         }
         // Keep coordinates as low as possible
-        if (m_startPos.y() >= h && m_endPos.y() >= h) {
-            m_startPos.setY(fmod(m_startPos.y(), h));
-            m_endPos.setY(fmod(m_endPos.y(), h));
+        if (m_animationStartPosition.y() >= h && m_animationEndPosition.y() >= h) {
+            m_animationStartPosition.setY(fmod(m_animationStartPosition.y(), h));
+            m_animationEndPosition.setY(fmod(m_animationEndPosition.y(), h));
         }
     }
 }
