@@ -14,7 +14,9 @@ SurfaceItem::SurfaceItem(Window *window, Item *parent)
     : Item(parent)
     , m_window(window)
 {
-    connect(window, &Window::windowClosed, this, &SurfaceItem::handleWindowClosed);
+    if (window) {
+        connect(window, &Window::windowClosed, this, &SurfaceItem::handleWindowClosed);
+    }
 }
 
 Window *SurfaceItem::window() const
@@ -43,7 +45,9 @@ void SurfaceItem::addDamage(const QRegion &region)
     m_damage += region;
     scheduleRepaint(region);
 
-    Q_EMIT m_window->damaged(m_window, region);
+    if (m_window) {
+        Q_EMIT m_window->damaged(m_window, region);
+    }
 }
 
 void SurfaceItem::resetDamage()

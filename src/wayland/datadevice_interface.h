@@ -50,6 +50,9 @@ public:
      */
     SurfaceInterface *surface() const;
 
+Q_SIGNALS:
+    void changed();
+
 private:
     explicit DragAndDropIcon(SurfaceInterface *surface);
     friend class DataDeviceInterfacePrivate;

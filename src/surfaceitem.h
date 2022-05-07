@@ -42,7 +42,7 @@ public:
     void unreferencePreviousPixmap();
 
 protected:
-    explicit SurfaceItem(Window *window, Item *parent = nullptr);
+    explicit SurfaceItem(Window *window = nullptr, Item *parent = nullptr);
 
     virtual SurfacePixmap *createPixmap() = 0;
     void preprocess() override;

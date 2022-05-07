@@ -40,6 +40,7 @@ class Scene;
 class Shadow;
 class ShadowItem;
 class SurfaceItem;
+class SurfaceItemWayland;
 class SurfacePixmapInternal;
 class SurfacePixmapWayland;
 class SurfacePixmapX11;
@@ -233,6 +234,10 @@ protected:
     QVector<WindowItem *> stacking_order;
 
 private:
+    void createaDndIconItem();
+    void destroyDndIconItem();
+    void updateDndIconItem();
+
     std::chrono::milliseconds m_expectedPresentTimestamp = std::chrono::milliseconds::zero();
     QList<SceneDelegate *> m_delegates;
     QRect m_geometry;
@@ -242,6 +247,8 @@ private:
     // how many times finalPaintScreen() has been called
     int m_paintScreenCount = 0;
     PaintContext m_paintContext;
+
+    QScopedPointer<SurfaceItemWayland> m_dndIcon;
 };
 
 } // namespace

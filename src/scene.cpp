@@ -59,7 +59,10 @@
 #include "renderlayer.h"
 #include "shadowitem.h"
 #include "surfaceitem.h"
+#include "surfaceitem_wayland.h"
 #include "unmanaged.h"
+#include "wayland/datadevice_interface.h"
+#include "wayland/seat_interface.h"
 #include "wayland/surface_interface.h"
 #include "waylandwindow.h"
 #include "windowitem.h"
@@ -152,6 +155,54 @@ void Scene::initialize()
     connect(workspace(), &Workspace::geometryChanged, this, [this]() {
         setGeometry(workspace()->geometry());
     });
+
+    // TODO: Move in a separate render layer.
+    if (waylandServer()) {
+        connect(waylandServer()->seat(), &KWaylandServer::SeatInterface::dragStarted, this, &Scene::createaDndIconItem);
+        connect(waylandServer()->seat(), &KWaylandServer::SeatInterface::dragEnded, this, &Scene::destroyDndIconItem);
+    }
+}
+
+void Scene::createaDndIconItem()
+{
+    KWaylandServer::DragAndDropIcon *dragIcon = waylandServer()->seat()->dragIcon();
+    if (!dragIcon) {
+        return;
+    }
+    if (waylandServer()->seat()->isDragPointer()) {
+        connect(waylandServer()->seat(), &KWaylandServer::SeatInterface::pointerPosChanged, this, &Scene::updateDndIconItem);
+    } else if (waylandServer()->seat()->isDragTouch()) {
+        connect(waylandServer()->seat(), &KWaylandServer::SeatInterface::touchMoved, this, &Scene::updateDndIconItem);
+    }
+    connect(dragIcon, &KWaylandServer::DragAndDropIcon::changed, this, &Scene::updateDndIconItem);
+}
+
+void Scene::destroyDndIconItem()
+{
+    if (waylandServer()->seat()->isDragPointer()) {
+        disconnect(waylandServer()->seat(), &KWaylandServer::SeatInterface::pointerPosChanged, this, &Scene::updateDndIconItem);
+    } else if (waylandServer()->seat()->isDragTouch()) {
+        disconnect(waylandServer()->seat(), &KWaylandServer::SeatInterface::touchMoved, this, &Scene::updateDndIconItem);
+    }
+    m_dndIcon.reset();
+}
+
+void Scene::updateDndIconItem()
+{
+    if (const auto dragIcon = waylandServer()->seat()->dragIcon()) {
+        if (!m_dndIcon || m_dndIcon->surface() != dragIcon->surface()) {
+            m_dndIcon.reset(new SurfaceItemWayland(dragIcon->surface(), nullptr));
+        }
+        QPointF position;
+        if (waylandServer()->seat()->isDragPointer()) {
+            position = waylandServer()->seat()->pointerPos();
+        } else if (waylandServer()->seat()->isDragTouch()) {
+            position = waylandServer()->seat()->firstTouchPointPosition();
+        }
+        m_dndIcon->setPosition(position.toPoint() + dragIcon->position());
+    } else {
+        m_dndIcon.reset();
+    }
 }
 
 void Scene::addRepaintFull()
@@ -386,6 +437,10 @@ void Scene::preparePaintSimpleScreen()
             opaque += paintData.opaque;
         }
     }
+
+    if (m_dndIcon) {
+        accumulateRepaints(m_dndIcon.data(), painted_screen, &m_paintContext.damage);
+    }
 }
 
 void Scene::postPaint()
@@ -408,6 +463,11 @@ void Scene::postPaint()
             if (auto surface = window->surface()) {
                 surface->frameRendered(frameTime.count());
             }
+        }
+
+        // TODO: Move in a separate render layer.
+        if (m_dndIcon) {
+            m_dndIcon->surface()->frameRendered(frameTime.count());
         }
     }
 
@@ -540,6 +600,14 @@ void Scene::paintSimpleScreen(int, const QRegion &region)
 
     for (const Phase2Data &paintData : std::as_const(m_paintContext.phase2Data)) {
         paintWindow(paintData.item, paintData.mask, paintData.region);
+    }
+
+    // TODO: Move in a separate render layer.
+    if (m_dndIcon) {
+        const QRegion repaint = region & m_dndIcon->mapToGlobal(m_dndIcon->boundingRect());
+        if (!repaint.isEmpty()) {
+            render(m_dndIcon.data(), 0, repaint, WindowPaintData(screenProjectionMatrix()));
+        }
     }
 }
 

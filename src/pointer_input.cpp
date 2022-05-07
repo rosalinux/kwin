@@ -974,12 +974,6 @@ CursorImage::~CursorImage() = default;
 
 void CursorImage::markAsRendered(std::chrono::milliseconds timestamp)
 {
-    if (m_currentSource == CursorSource::DragAndDrop) {
-        // always sending a frame rendered to the drag icon surface to not freeze QtWayland (see https://bugreports.qt.io/browse/QTBUG-51599 )
-        if (const KWaylandServer::DragAndDropIcon *icon = waylandServer()->seat()->dragIcon()) {
-            icon->surface()->frameRendered(timestamp.count());
-        }
-    }
     if (m_currentSource != CursorSource::LockScreen
         && m_currentSource != CursorSource::PointerSurface
         && m_currentSource != CursorSource::DragAndDrop) {
@@ -1154,14 +1148,6 @@ void CursorImage::updateDragCursor()
 {
     m_drag.cursor = {};
     const bool needsEmit = m_currentSource == CursorSource::DragAndDrop;
-    QImage additionalIcon;
-    if (const KWaylandServer::DragAndDropIcon *dragIcon = waylandServer()->seat()->dragIcon()) {
-        if (auto buffer = qobject_cast<KWaylandServer::ShmClientBuffer *>(dragIcon->surface()->buffer())) {
-            additionalIcon = buffer->data().copy();
-            additionalIcon.setDevicePixelRatio(dragIcon->surface()->bufferScale());
-            additionalIcon.setOffset(dragIcon->position());
-        }
-    }
     auto p = waylandServer()->seat()->pointer();
     if (!p) {
         if (needsEmit) {
@@ -1194,37 +1180,8 @@ void CursorImage::updateDragCursor()
     QImage cursorImage = buffer->data();
     cursorImage.setDevicePixelRatio(cursorSurface->bufferScale());
 
-    if (additionalIcon.isNull()) {
-        m_drag.cursor.image = cursorImage.copy();
-        m_drag.cursor.hotspot = c->hotspot();
-    } else {
-        QRect cursorRect(QPoint(0, 0), cursorImage.size() / cursorImage.devicePixelRatio());
-        QRect iconRect(QPoint(0, 0), additionalIcon.size() / additionalIcon.devicePixelRatio());
-
-        if (-c->hotspot().x() < additionalIcon.offset().x()) {
-            iconRect.moveLeft(c->hotspot().x() - additionalIcon.offset().x());
-        } else {
-            cursorRect.moveLeft(-additionalIcon.offset().x() - c->hotspot().x());
-        }
-        if (-c->hotspot().y() < additionalIcon.offset().y()) {
-            iconRect.moveTop(c->hotspot().y() - additionalIcon.offset().y());
-        } else {
-            cursorRect.moveTop(-additionalIcon.offset().y() - c->hotspot().y());
-        }
-
-        const QRect viewport = cursorRect.united(iconRect);
-        const qreal scale = cursorSurface->bufferScale();
-
-        m_drag.cursor.image = QImage(viewport.size() * scale, QImage::Format_ARGB32_Premultiplied);
-        m_drag.cursor.image.setDevicePixelRatio(scale);
-        m_drag.cursor.image.fill(Qt::transparent);
-        m_drag.cursor.hotspot = cursorRect.topLeft() + c->hotspot();
-
-        QPainter p(&m_drag.cursor.image);
-        p.drawImage(iconRect, additionalIcon);
-        p.drawImage(cursorRect, cursorImage);
-        p.end();
-    }
+    m_drag.cursor.image = cursorImage.copy();
+    m_drag.cursor.hotspot = c->hotspot();
 
     if (needsEmit) {
         Q_EMIT changed();
