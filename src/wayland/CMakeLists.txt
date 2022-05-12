@@ -175,10 +175,15 @@ ecm_add_qtwayland_server_protocol_kde(WaylandProtocols_xml
     PROTOCOL ${WaylandProtocols_DATADIR}/staging/drm-lease/drm-lease-v1.xml
     BASENAME drm-lease-v1
 )
+ecm_add_qtwayland_server_protocol_kde(WaylandProtocols_xml
+    PROTOCOL ${PROJECT_SOURCE_DIR}/src/wayland/protocols/kde-lockscreenallowed-v1.xml
+    BASENAME kde-lockscreenallowed-v1
+)
 
 target_sources(kwin PRIVATE
     abstract_data_source.cpp
     abstract_drop_handler.cpp
+    lockscreenallowed_interface.cpp
     appmenu_interface.cpp
     blur_interface.cpp
     clientbuffer.cpp

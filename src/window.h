@@ -702,6 +702,9 @@ public:
     bool isOnCurrentActivity() const;
     bool isOnAllDesktops() const;
     bool isOnAllActivities() const;
+    bool isLockScreenOverlay() const;
+
+    void setLockScreenOverlay(bool above);
 
     virtual QByteArray windowRole() const;
     QByteArray sessionId() const;
@@ -1524,6 +1527,7 @@ Q_SIGNALS:
     void unresponsiveChanged(bool);
     void decorationChanged();
     void hiddenChanged();
+    void aboveLockScreenChanged();
 
 protected:
     void setWindowHandles(xcb_window_t client);
@@ -1987,6 +1991,7 @@ private:
 
     WindowRules m_rules;
     quint32 m_lastUsageSerial = 0;
+    bool m_aboveLockScreen = false;
 };
 
 /**

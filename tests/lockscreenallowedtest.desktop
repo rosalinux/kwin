@@ -1,0 +1,9 @@
+# copy to $(qtpaths --install-prefix)/share/applications/
+# remember to change the Exec line to your builddir path
+
+[Desktop Entry]
+Exec=absolute/path/to/the/executable/bin/lockscreenallowedtest
+Type=Application
+X-KDE-Wayland-Interfaces=kde_lockscreenallowed_v1
+NoDisplay=true
+Name=KWin AboveLockScreenTest
