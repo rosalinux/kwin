@@ -336,7 +336,8 @@ void Window::setOpacity(qreal opacity)
 
 bool Window::setupCompositing()
 {
-    if (!Compositor::compositing()) {
+    Scene *scene = Compositor::self()->scene();
+    if (!scene) {
         return false;
     }
 
@@ -344,6 +345,7 @@ bool Window::setupCompositing()
     updateShadow();
 
     m_windowItem = createItem();
+    m_windowItem->setParentItem(scene->rootItem());
     m_effectWindow->setWindowItem(m_windowItem);
 
     connect(windowItem(), &WindowItem::positionChanged, this, &Window::visibleGeometryChanged);

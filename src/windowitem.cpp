@@ -46,6 +46,9 @@ WindowItem::WindowItem(Window *window, Item *parent)
     connect(window, &Window::opacityChanged, this, &WindowItem::updateOpacity);
     updateOpacity();
 
+    connect(window, &Window::stackingOrderChanged, this, &WindowItem::updateStackingOrder);
+    updateStackingOrder();
+
     connect(window, &Window::windowClosed, this, &WindowItem::handleWindowClosed);
 }
 
@@ -235,6 +238,11 @@ void WindowItem::updateDecorationItem()
 void WindowItem::updateOpacity()
 {
     setOpacity(m_window->opacity());
+}
+
+void WindowItem::updateStackingOrder()
+{
+    setZ(m_window->stackingOrder());
 }
 
 WindowItemX11::WindowItemX11(Window *window, Item *parent)

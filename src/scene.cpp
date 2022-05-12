@@ -137,6 +137,7 @@ QRect SceneDelegate::viewport() const
 
 Scene::Scene(QObject *parent)
     : QObject(parent)
+    , m_rootItem(new Item())
 {
 }
 
@@ -146,8 +147,6 @@ Scene::~Scene()
 
 void Scene::initialize()
 {
-    connect(workspace(), &Workspace::stackingOrderChanged, this, &Scene::addRepaintFull);
-
     setGeometry(workspace()->geometry());
     connect(workspace(), &Workspace::geometryChanged, this, [this]() {
         setGeometry(workspace()->geometry());
@@ -179,6 +178,11 @@ void Scene::addRepaint(const QRegion &region)
 QRegion Scene::damage() const
 {
     return m_paintContext.damage;
+}
+
+Item *Scene::rootItem() const
+{
+    return m_rootItem.data();
 }
 
 QRect Scene::geometry() const
@@ -546,14 +550,14 @@ void Scene::paintSimpleScreen(int, const QRegion &region)
 void Scene::createStackingOrder()
 {
     // Create a list of all windows in the stacking order
-    QList<Window *> windows = workspace()->stackingOrder();
+    QList<Item *> items = m_rootItem->sortedChildItems();
 
     // Move elevated windows to the top of the stacking order
     const QList<EffectWindow *> elevatedList = static_cast<EffectsHandlerImpl *>(effects)->elevatedWindows();
     for (EffectWindow *c : elevatedList) {
-        Window *t = static_cast<EffectWindowImpl *>(c)->window();
-        windows.removeAll(t);
-        windows.append(t);
+        WindowItem *item = static_cast<EffectWindowImpl *>(c)->windowItem();
+        items.removeAll(item);
+        items.append(item);
     }
 
     // Skip windows that are not yet ready for being painted and if screen is locked skip windows
@@ -562,14 +566,15 @@ void Scene::createStackingOrder()
     // TODO? This cannot be used so carelessly - needs protections against broken clients, the
     // window should not get focus before it's displayed, handle unredirected windows properly and
     // so on.
-    for (Window *window : std::as_const(windows)) {
-        if (!window->readyForPainting()) {
+    for (Item *item : std::as_const(items)) {
+        WindowItem *windowItem = static_cast<WindowItem *>(item);
+        if (!windowItem->isVisible()) {
             continue;
         }
-        if (!window->windowItem()->isVisible()) {
+        if (!windowItem->window()->readyForPainting()) {
             continue;
         }
-        stacking_order.append(window->windowItem());
+        stacking_order.append(windowItem);
     }
 }
 

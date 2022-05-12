@@ -90,6 +90,8 @@ public:
     QRect geometry() const;
     void setGeometry(const QRect &rect);
 
+    Item *rootItem() const;
+
     QList<SceneDelegate *> delegates() const;
     void addDelegate(SceneDelegate *delegate);
     void removeDelegate(SceneDelegate *delegate);
@@ -233,6 +235,7 @@ protected:
     QVector<WindowItem *> stacking_order;
 
 private:
+    QScopedPointer<Item> m_rootItem;
     std::chrono::milliseconds m_expectedPresentTimestamp = std::chrono::milliseconds::zero();
     QList<SceneDelegate *> m_delegates;
     QRect m_geometry;
