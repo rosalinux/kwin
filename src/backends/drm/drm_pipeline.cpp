@@ -244,9 +244,13 @@ void DrmPipeline::prepareAtomicModeset()
     m_pending.crtc->setPending(DrmCrtc::PropertyIndex::ModeId, activePending() ? m_pending.mode->blobId() : 0);
 
     m_pending.crtc->primaryPlane()->setPending(DrmPlane::PropertyIndex::CrtcId, activePending() ? m_pending.crtc->id() : 0);
-    m_pending.crtc->primaryPlane()->setTransformation(m_pending.bufferOrientation);
+    if (const auto rotation = m_pending.crtc->primaryPlane()->getProp(DrmPlane::PropertyIndex::Rotation)) {
+        rotation->setEnum(m_pending.bufferOrientation);
+    }
     if (m_pending.crtc->cursorPlane()) {
-        m_pending.crtc->cursorPlane()->setTransformation(DrmPlane::Transformation::Rotate0);
+        if (const auto rotation = m_pending.crtc->cursorPlane()->getProp(DrmPlane::PropertyIndex::Rotation)) {
+            rotation->setEnum(DrmPlane::Transformation::Rotate0);
+        }
     }
 }
 
@@ -255,7 +259,7 @@ void DrmPipeline::checkHardwareRotation()
     if (m_pending.crtc && m_pending.crtc->primaryPlane()) {
         const bool supported = (m_pending.bufferOrientation & m_pending.crtc->primaryPlane()->supportedTransformations());
         if (!supported) {
-            m_pending.bufferOrientation = DrmPlane::Transformations(DrmPlane::Transformation::Rotate0);
+            m_pending.bufferOrientation = DrmPlane::Transformation::Rotate0;
         }
     } else {
         m_pending.bufferOrientation = DrmPlane::Transformation::Rotate0;
@@ -545,14 +549,12 @@ void DrmPipeline::printProps(DrmObject *object, PrintMode mode)
     qCDebug(KWIN_DRM) << object->typeName() << object->id();
     for (const auto &prop : list) {
         if (prop) {
-            uint64_t current = prop->name().startsWith("SRC_") ? prop->current() >> 16 : prop->current();
             if (prop->isImmutable() || !prop->needsCommit()) {
                 if (mode == PrintMode::All) {
-                    qCDebug(KWIN_DRM).nospace() << "\t" << prop->name() << ": " << current;
+                    qCDebug(KWIN_DRM).nospace() << "\t" << prop->name() << ": " << prop->valueString(prop->current());
                 }
             } else {
-                uint64_t pending = prop->name().startsWith("SRC_") ? prop->pending() >> 16 : prop->pending();
-                qCDebug(KWIN_DRM).nospace() << "\t" << prop->name() << ": " << current << "->" << pending;
+                qCDebug(KWIN_DRM).nospace() << "\t" << prop->name() << ": " << prop->valueString(prop->current()) << "->" << prop->valueString(prop->pending());
             }
         }
     }
