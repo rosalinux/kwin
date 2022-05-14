@@ -126,6 +126,7 @@ private:
     bool activePending() const;
     bool isBufferForDirectScanout() const;
     uint32_t calculateUnderscan();
+    void checkHardwareRotation();
 
     // legacy only
     bool presentLegacy();

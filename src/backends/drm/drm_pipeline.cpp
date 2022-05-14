@@ -116,6 +116,7 @@ bool DrmPipeline::commitPipelinesAtomic(const QVector<DrmPipeline *> &pipelines,
         return false;
     };
     for (const auto &pipeline : pipelines) {
+        pipeline->checkHardwareRotation();
         if (pipeline->activePending() && !pipeline->m_pending.layer->checkTestBuffer()) {
             qCWarning(KWIN_DRM) << "Checking test buffer failed for" << mode;
             return failed();
@@ -246,6 +247,18 @@ void DrmPipeline::prepareAtomicModeset()
     m_pending.crtc->primaryPlane()->setTransformation(m_pending.bufferOrientation);
     if (m_pending.crtc->cursorPlane()) {
         m_pending.crtc->cursorPlane()->setTransformation(DrmPlane::Transformation::Rotate0);
+    }
+}
+
+void DrmPipeline::checkHardwareRotation()
+{
+    if (m_pending.crtc && m_pending.crtc->primaryPlane()) {
+        const bool supported = (m_pending.bufferOrientation & m_pending.crtc->primaryPlane()->supportedTransformations());
+        if (!supported) {
+            m_pending.bufferOrientation = DrmPlane::Transformations(DrmPlane::Transformation::Rotate0);
+        }
+    } else {
+        m_pending.bufferOrientation = DrmPlane::Transformation::Rotate0;
     }
 }
 
