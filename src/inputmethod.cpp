@@ -50,6 +50,33 @@ using namespace KWaylandServer;
 namespace KWin
 {
 
+static std::vector<quint32> textToKey(const QString &text)
+{
+    if (text.isEmpty()) {
+        return {};
+    }
+
+    auto sequence = QKeySequence::fromString(text);
+    if (sequence.isEmpty()) {
+        return {};
+    }
+
+    auto keys = KWin::input()->keyboard()->xkb()->qtKeyToXkbKeyCodes(sequence[0]);
+    if (keys.empty()) {
+        return {};
+    }
+
+    if (text.isUpper()) {
+        return {KEY_LEFTSHIFT, keys[0] - 8};
+    }
+
+    for (auto &key : keys) {
+        key = key - 8;
+    }
+
+    return keys;
+}
+
 KWIN_SINGLETON_FACTORY(InputMethod)
 
 InputMethod::InputMethod(QObject *parent)
@@ -388,17 +415,14 @@ void InputMethod::keysymReceived(quint32 serial, quint32 time, quint32 sym, bool
         }
         return;
     }
-    auto t3 = waylandServer()->seat()->textInputV3();
-    if (t3 && t3->isEnabled()) {
-        KWaylandServer::KeyboardKeyState state;
-        if (pressed) {
-            state = KWaylandServer::KeyboardKeyState::Pressed;
-        } else {
-            state = KWaylandServer::KeyboardKeyState::Released;
-        }
-        waylandServer()->seat()->notifyKeyboardKey(keysymToKeycode(sym), state);
-        return;
+
+    KWaylandServer::KeyboardKeyState state;
+    if (pressed) {
+        state = KWaylandServer::KeyboardKeyState::Pressed;
+    } else {
+        state = KWaylandServer::KeyboardKeyState::Released;
     }
+    waylandServer()->seat()->notifyKeyboardKey(keysymToKeycode(sym), state);
 }
 
 void InputMethod::commitString(qint32 serial, const QString &text)
@@ -413,7 +437,31 @@ void InputMethod::commitString(qint32 serial, const QString &text)
         t3->done();
         return;
     } else {
-        qCWarning(KWIN_VIRTUALKEYBOARD) << "We have nobody to commit to!!!";
+        // The application has no way of communicating with the input method.
+        // So instead, try to convert what we get from the input method into
+        // keycodes and send those as fake input to the client.
+        auto keys = textToKey(text);
+        if (keys.empty()) {
+            return;
+        }
+
+        // First, send all the extracted keys as pressed keys to the client.
+        for (const auto &key : keys) {
+            waylandServer()->seat()->notifyKeyboardKey(key, KWaylandServer::KeyboardKeyState::Pressed);
+        }
+
+        // Then, send key release for those keys in reverse.
+        for (auto itr = keys.rbegin(); itr != keys.rend(); ++itr) {
+            // Since we are faking key events, we do not have distinct press/release
+            // events. So instead, just queue the button release so it gets sent
+            // a few moments after the press.
+            auto key = *itr;
+            QMetaObject::invokeMethod(
+                this, [key]() {
+                    waylandServer()->seat()->notifyKeyboardKey(key, KWaylandServer::KeyboardKeyState::Released);
+                },
+                Qt::QueuedConnection);
+        }
     }
 }
 
@@ -583,12 +631,16 @@ void InputMethod::adoptInputMethodContext()
         inputContext->sendContentType(t2->contentHints(), t2->contentPurpose());
         connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::language, this, &InputMethod::setLanguage);
         connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::textDirection, this, &InputMethod::setTextDirection);
-    }
-
-    if (t3 && t3->isEnabled()) {
+    } else if (t3 && t3->isEnabled()) {
         inputContext->sendSurroundingText(t3->surroundingText(), t3->surroundingTextCursorPosition(), t3->surroundingTextSelectionAnchor());
         inputContext->sendContentType(t3->contentHints(), t3->contentPurpose());
+    } else {
+        // When we have neither text-input-v2 nor text-input-v3 we can only send
+        // fake key events, not more complex text. So ask the input method to
+        // only send basic characters without any pre-editing.
+        inputContext->sendContentType(KWaylandServer::TextInputContentHint::Latin, KWaylandServer::TextInputContentPurpose::Normal);
     }
+
     inputContext->sendCommitState(m_serial++);
 
     connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::keysym, this, &InputMethod::keysymReceived, Qt::UniqueConnection);
