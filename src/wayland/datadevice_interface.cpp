@@ -24,8 +24,6 @@ class DragAndDropIconPrivate : public SurfaceRole
 public:
     explicit DragAndDropIconPrivate(SurfaceInterface *surface);
 
-    void commit() override;
-
     QPoint position;
 };
 
@@ -34,19 +32,20 @@ DragAndDropIconPrivate::DragAndDropIconPrivate(SurfaceInterface *surface)
 {
 }
 
-void DragAndDropIconPrivate::commit()
-{
-    position += surface()->offset();
-}
-
 DragAndDropIcon::DragAndDropIcon(SurfaceInterface *surface)
     : QObject(surface)
     , d(new DragAndDropIconPrivate(surface))
 {
+    connect(surface, &SurfaceInterface::committed, this, &DragAndDropIcon::commit);
 }
 
 DragAndDropIcon::~DragAndDropIcon()
 {
+}
+
+void DragAndDropIcon::commit()
+{
+    d->position += d->surface()->offset();
 }
 
 QPoint DragAndDropIcon::position() const

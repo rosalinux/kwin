@@ -9,7 +9,7 @@
 #include "qwayland-server-xdg-shell.h"
 #include "xdgshell_interface.h"
 
-#include "surface_interface.h"
+#include "surface_interface_p.h"
 #include "surfacerole_p.h"
 
 namespace KWaylandServer
@@ -86,6 +86,8 @@ protected:
 class XdgSurfaceState
 {
 public:
+    void mergeInto(XdgSurfaceState *target);
+
     QRect windowGeometry;
     quint32 acknowledgedConfigure;
     bool acknowledgedConfigureIsSet = false;
@@ -95,6 +97,9 @@ public:
 class XdgToplevelState
 {
 public:
+    void mergeInto(XdgToplevelState *target);
+
+    quint32 serial = 0;
     XdgSurfaceState base;
     QSize minimumSize;
     QSize maximumSize;
@@ -103,20 +108,21 @@ public:
 class XdgPopupState
 {
 public:
+    void mergeInto(XdgPopupState *target);
+
+    quint32 serial = 0;
     XdgSurfaceState base;
 };
 
 template<typename State>
-class XdgSurfaceRole : public SurfaceRole
+class XdgSurfaceRole : public SurfaceRole, public SurfaceExtension<State>
 {
 public:
     XdgSurfaceRole(SurfaceInterface *surface, const QByteArray &name)
         : SurfaceRole(surface, name)
+        , SurfaceExtension<State>(surface)
     {
     }
-
-    State pending;
-    State current;
 };
 
 class XdgSurfaceInterfacePrivate : public QtWaylandServer::xdg_surface
@@ -159,8 +165,8 @@ class XdgToplevelInterfacePrivate : public XdgSurfaceRole<XdgToplevelState>, pub
 public:
     XdgToplevelInterfacePrivate(XdgToplevelInterface *toplevel, XdgSurfaceInterface *surface);
 
-    void commit() override;
-    void reset();
+    void applyState(XdgToplevelState *next) override;
+    void resetState();
 
     static XdgToplevelInterfacePrivate *get(XdgToplevelInterface *toplevel);
     static XdgToplevelInterfacePrivate *get(::wl_resource *resource);
@@ -197,8 +203,8 @@ public:
 
     XdgPopupInterfacePrivate(XdgPopupInterface *popup, XdgSurfaceInterface *surface);
 
-    void commit() override;
-    void reset();
+    void applyState(XdgPopupState *next) override;
+    void resetState();
 
     XdgPopupInterface *q;
     SurfaceInterface *parentSurface;

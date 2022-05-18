@@ -722,9 +722,6 @@ void SurfaceInterfacePrivate::applyState(SurfaceState *next)
         extension->surfaceStateApplied(next->serial);
     }
 
-    if (role) {
-        role->commit();
-    }
     Q_EMIT q->committed();
 }
 

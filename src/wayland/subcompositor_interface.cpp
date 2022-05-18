@@ -175,10 +175,6 @@ void SubSurfaceInterfacePrivate::subsurface_set_desync(Resource *)
     Q_EMIT q->modeChanged(SubSurfaceInterface::Mode::Desynchronized);
 }
 
-void SubSurfaceInterfacePrivate::commit()
-{
-}
-
 void SubSurfaceInterfacePrivate::parentApplyState(quint32 serial)
 {
     auto parentPrivate = SurfaceInterfacePrivate::get(parent);

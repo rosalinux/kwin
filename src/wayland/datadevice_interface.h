@@ -51,6 +51,8 @@ public:
     SurfaceInterface *surface() const;
 
 private:
+    void commit();
+
     explicit DragAndDropIcon(SurfaceInterface *surface);
     friend class DataDeviceInterfacePrivate;
     QScopedPointer<DragAndDropIconPrivate> d;

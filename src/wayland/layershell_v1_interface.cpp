@@ -6,7 +6,7 @@
 
 #include "layershell_v1_interface.h"
 #include "display.h"
-#include "surface_interface.h"
+#include "surface_interface_p.h"
 #include "surfacerole_p.h"
 #include "utils/common.h"
 #include "xdgshell_interface_p.h"
@@ -41,6 +41,9 @@ protected:
 class LayerSurfaceV1State
 {
 public:
+    void mergeInto(LayerSurfaceV1State *target);
+
+    quint32 serial = 0;
     LayerSurfaceV1Interface::Layer layer = LayerSurfaceV1Interface::BottomLayer;
     Qt::Edges anchor;
     QMargins margins;
@@ -51,19 +54,17 @@ public:
     bool acceptsFocus = false;
 };
 
-class LayerSurfaceV1InterfacePrivate : public SurfaceRole, public QtWaylandServer::zwlr_layer_surface_v1
+class LayerSurfaceV1InterfacePrivate : public SurfaceRole, public SurfaceExtension<LayerSurfaceV1State>, public QtWaylandServer::zwlr_layer_surface_v1
 {
 public:
     LayerSurfaceV1InterfacePrivate(LayerSurfaceV1Interface *q, SurfaceInterface *surface);
 
-    void commit() override;
+    void applyState(LayerSurfaceV1State *next) override;
 
     LayerSurfaceV1Interface *q;
     LayerShellV1Interface *shell;
     QPointer<SurfaceInterface> surface;
     QPointer<OutputInterface> output;
-    LayerSurfaceV1State current;
-    LayerSurfaceV1State pending;
     QQueue<quint32> serials;
     QString scope;
     bool isClosed = false;
@@ -149,6 +150,7 @@ Display *LayerShellV1Interface::display() const
 
 LayerSurfaceV1InterfacePrivate::LayerSurfaceV1InterfacePrivate(LayerSurfaceV1Interface *q, SurfaceInterface *surface)
     : SurfaceRole(surface, QByteArrayLiteral("layer_surface_v1"))
+    , SurfaceExtension(surface)
     , q(q)
     , surface(surface)
 {
@@ -164,7 +166,7 @@ void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_destroy_resource(Reso
 void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_set_size(Resource *resource, uint32_t width, uint32_t height)
 {
     Q_UNUSED(resource)
-    pending.desiredSize = QSize(width, height);
+    m_pending.desiredSize = QSize(width, height);
 }
 
 void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_set_anchor(Resource *resource, uint32_t anchor)
@@ -175,39 +177,39 @@ void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_set_anchor(Resource *
         return;
     }
 
-    pending.anchor = Qt::Edges();
+    m_pending.anchor = Qt::Edges();
 
     if (anchor & anchor_top) {
-        pending.anchor |= Qt::TopEdge;
+        m_pending.anchor |= Qt::TopEdge;
     }
 
     if (anchor & anchor_right) {
-        pending.anchor |= Qt::RightEdge;
+        m_pending.anchor |= Qt::RightEdge;
     }
 
     if (anchor & anchor_bottom) {
-        pending.anchor |= Qt::BottomEdge;
+        m_pending.anchor |= Qt::BottomEdge;
     }
 
     if (anchor & anchor_left) {
-        pending.anchor |= Qt::LeftEdge;
+        m_pending.anchor |= Qt::LeftEdge;
     }
 }
 
 void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_set_exclusive_zone(Resource *, int32_t zone)
 {
-    pending.exclusiveZone = zone;
+    m_pending.exclusiveZone = zone;
 }
 
 void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_set_margin(Resource *, int32_t top, int32_t right, int32_t bottom, int32_t left)
 {
-    pending.margins = QMargins(left, top, right, bottom);
+    m_pending.margins = QMargins(left, top, right, bottom);
 }
 
 void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_set_keyboard_interactivity(Resource *resource, uint32_t keyboard_interactivity)
 {
     Q_UNUSED(resource)
-    pending.acceptsFocus = keyboard_interactivity;
+    m_pending.acceptsFocus = keyboard_interactivity;
 }
 
 void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_get_popup(Resource *resource, struct ::wl_resource *popup_resource)
@@ -236,8 +238,8 @@ void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_ack_configure(Resourc
         }
     }
     if (!isClosed) {
-        pending.acknowledgedConfigure = serial;
-        pending.acknowledgedConfigureIsSet = true;
+        m_pending.acknowledgedConfigure = serial;
+        m_pending.acknowledgedConfigureIsSet = true;
     }
 }
 
@@ -252,19 +254,23 @@ void LayerSurfaceV1InterfacePrivate::zwlr_layer_surface_v1_set_layer(Resource *r
         wl_resource_post_error(resource->handle, LayerShellV1InterfacePrivate::error_invalid_layer, "invalid layer %d", layer);
         return;
     }
-    pending.layer = LayerSurfaceV1Interface::Layer(layer);
+    m_pending.layer = LayerSurfaceV1Interface::Layer(layer);
 }
 
-void LayerSurfaceV1InterfacePrivate::commit()
+void LayerSurfaceV1State::mergeInto(LayerSurfaceV1State *target)
+{
+    *target = *this;
+    acknowledgedConfigureIsSet = false;
+}
+
+void LayerSurfaceV1InterfacePrivate::applyState(LayerSurfaceV1State *next)
 {
     if (isClosed) {
         return;
     }
 
-    if (pending.acknowledgedConfigureIsSet) {
-        current.acknowledgedConfigure = pending.acknowledgedConfigure;
-        pending.acknowledgedConfigureIsSet = false;
-        Q_EMIT q->configureAcknowledged(pending.acknowledgedConfigure);
+    if (next->acknowledgedConfigureIsSet) {
+        Q_EMIT q->configureAcknowledged(next->acknowledgedConfigure);
     }
 
     if (Q_UNLIKELY(surface->isMapped() && !isConfigured)) {
@@ -275,7 +281,7 @@ void LayerSurfaceV1InterfacePrivate::commit()
         return;
     }
 
-    if (Q_UNLIKELY(pending.desiredSize.width() == 0 && (!(pending.anchor & Qt::LeftEdge) || !(pending.anchor & Qt::RightEdge)))) {
+    if (Q_UNLIKELY(next->desiredSize.width() == 0 && (!(next->anchor & Qt::LeftEdge) || !(next->anchor & Qt::RightEdge)))) {
         wl_resource_post_error(resource()->handle,
                                error_invalid_size,
                                "the layer surface has a width of 0 but its anchor "
@@ -283,7 +289,7 @@ void LayerSurfaceV1InterfacePrivate::commit()
         return;
     }
 
-    if (Q_UNLIKELY(pending.desiredSize.height() == 0 && (!(pending.anchor & Qt::TopEdge) || !(pending.anchor & Qt::BottomEdge)))) {
+    if (Q_UNLIKELY(next->desiredSize.height() == 0 && (!(next->anchor & Qt::TopEdge) || !(next->anchor & Qt::BottomEdge)))) {
         wl_resource_post_error(resource()->handle,
                                error_invalid_size,
                                "the layer surface has a height of 0 but its anchor "
@@ -297,35 +303,37 @@ void LayerSurfaceV1InterfacePrivate::commit()
         firstBufferAttached = false;
         isConfigured = false;
 
-        current = LayerSurfaceV1State();
-        pending = LayerSurfaceV1State();
+        m_current = LayerSurfaceV1State();
+        m_pending = LayerSurfaceV1State();
+        m_stashed.clear();
 
         return;
     }
 
-    const LayerSurfaceV1State previous = std::exchange(current, pending);
+    const LayerSurfaceV1State previous = m_current;
+    next->mergeInto(&m_current);
 
     isCommitted = true; // Must set the committed state before emitting any signals.
     if (surface->isMapped()) {
         firstBufferAttached = true;
     }
 
-    if (previous.acceptsFocus != current.acceptsFocus) {
+    if (previous.acceptsFocus != m_current.acceptsFocus) {
         Q_EMIT q->acceptsFocusChanged();
     }
-    if (previous.layer != current.layer) {
+    if (previous.layer != m_current.layer) {
         Q_EMIT q->layerChanged();
     }
-    if (previous.anchor != current.anchor) {
+    if (previous.anchor != m_current.anchor) {
         Q_EMIT q->anchorChanged();
     }
-    if (previous.desiredSize != current.desiredSize) {
+    if (previous.desiredSize != m_current.desiredSize) {
         Q_EMIT q->desiredSizeChanged();
     }
-    if (previous.exclusiveZone != current.exclusiveZone) {
+    if (previous.exclusiveZone != m_current.exclusiveZone) {
         Q_EMIT q->exclusiveZoneChanged();
     }
-    if (previous.margins != current.margins) {
+    if (previous.margins != m_current.margins) {
         Q_EMIT q->marginsChanged();
     }
 }
@@ -338,8 +346,8 @@ LayerSurfaceV1Interface::LayerSurfaceV1Interface(LayerShellV1Interface *shell,
                                                  wl_resource *resource)
     : d(new LayerSurfaceV1InterfacePrivate(this, surface))
 {
-    d->current.layer = layer;
-    d->pending.layer = layer;
+    d->m_current.layer = layer;
+    d->m_pending.layer = layer;
 
     d->shell = shell;
     d->output = output;
@@ -364,52 +372,52 @@ SurfaceInterface *LayerSurfaceV1Interface::surface() const
 
 Qt::Edges LayerSurfaceV1Interface::anchor() const
 {
-    return d->current.anchor;
+    return d->m_current.anchor;
 }
 
 QSize LayerSurfaceV1Interface::desiredSize() const
 {
-    return d->current.desiredSize;
+    return d->m_current.desiredSize;
 }
 
 bool LayerSurfaceV1Interface::acceptsFocus() const
 {
-    return d->current.acceptsFocus;
+    return d->m_current.acceptsFocus;
 }
 
 LayerSurfaceV1Interface::Layer LayerSurfaceV1Interface::layer() const
 {
-    return d->current.layer;
+    return d->m_current.layer;
 }
 
 QMargins LayerSurfaceV1Interface::margins() const
 {
-    return d->current.margins;
+    return d->m_current.margins;
 }
 
 int LayerSurfaceV1Interface::leftMargin() const
 {
-    return d->current.margins.left();
+    return d->m_current.margins.left();
 }
 
 int LayerSurfaceV1Interface::topMargin() const
 {
-    return d->current.margins.top();
+    return d->m_current.margins.top();
 }
 
 int LayerSurfaceV1Interface::rightMargin() const
 {
-    return d->current.margins.right();
+    return d->m_current.margins.right();
 }
 
 int LayerSurfaceV1Interface::bottomMargin() const
 {
-    return d->current.margins.bottom();
+    return d->m_current.margins.bottom();
 }
 
 int LayerSurfaceV1Interface::exclusiveZone() const
 {
-    return d->current.exclusiveZone;
+    return d->m_current.exclusiveZone;
 }
 
 Qt::Edge LayerSurfaceV1Interface::exclusiveEdge() const

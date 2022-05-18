@@ -42,7 +42,6 @@ public:
 
     SubSurfaceInterfacePrivate(SubSurfaceInterface *q, SurfaceInterface *surface, SurfaceInterface *parent, ::wl_resource *resource);
 
-    void commit() override;
     void parentApplyState(quint32 serial);
 
     SubSurfaceInterface *q;
