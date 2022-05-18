@@ -8,6 +8,7 @@
 #pragma once
 
 #include "pointerconstraints_v1_interface.h"
+#include "surface_interface_p.h"
 
 #include "qwayland-server-pointer-constraints-unstable-v1.h"
 
@@ -34,23 +35,33 @@ protected:
     void zwp_pointer_constraints_v1_destroy(Resource *resource) override;
 };
 
-class LockedPointerV1InterfacePrivate : public QtWaylandServer::zwp_locked_pointer_v1
+class LockedPointerV1State
+{
+public:
+    void mergeInto(LockedPointerV1State *target);
+
+    quint32 serial = 0;
+    QRegion region;
+    QPointF hint = QPointF(-1, -1);
+    bool regionIsSet = false;
+    bool hintIsSet = false;
+};
+
+class LockedPointerV1InterfacePrivate final : public QtWaylandServer::zwp_locked_pointer_v1, public SurfaceExtension<LockedPointerV1State>
 {
 public:
     static LockedPointerV1InterfacePrivate *get(LockedPointerV1Interface *pointer);
 
-    LockedPointerV1InterfacePrivate(LockedPointerV1Interface *q, LockedPointerV1Interface::LifeTime lifeTime, const QRegion &region, ::wl_resource *resource);
+    LockedPointerV1InterfacePrivate(LockedPointerV1Interface *q,
+                                    SurfaceInterface *surface,
+                                    LockedPointerV1Interface::LifeTime lifeTime,
+                                    const QRegion &region,
+                                    ::wl_resource *resource);
 
-    void commit();
+    void applyState(LockedPointerV1State *next) override;
 
     LockedPointerV1Interface *q;
     LockedPointerV1Interface::LifeTime lifeTime;
-    QRegion region;
-    QRegion pendingRegion;
-    QPointF hint = QPointF(-1, -1);
-    QPointF pendingHint;
-    bool hasPendingRegion = false;
-    bool hasPendingHint = false;
     bool isLocked = false;
 
 protected:
@@ -60,23 +71,31 @@ protected:
     void zwp_locked_pointer_v1_set_region(Resource *resource, struct ::wl_resource *region_resource) override;
 };
 
-class ConfinedPointerV1InterfacePrivate : public QtWaylandServer::zwp_confined_pointer_v1
+class ConfinedPointerV1State
+{
+public:
+    void mergeInto(ConfinedPointerV1State *target);
+
+    quint32 serial = 0;
+    QRegion region;
+    bool regionIsSet = false;
+};
+
+class ConfinedPointerV1InterfacePrivate final : public QtWaylandServer::zwp_confined_pointer_v1, public SurfaceExtension<ConfinedPointerV1State>
 {
 public:
     static ConfinedPointerV1InterfacePrivate *get(ConfinedPointerV1Interface *pointer);
 
     ConfinedPointerV1InterfacePrivate(ConfinedPointerV1Interface *q,
+                                      SurfaceInterface *surface,
                                       ConfinedPointerV1Interface::LifeTime lifeTime,
                                       const QRegion &region,
                                       ::wl_resource *resource);
 
-    void commit();
+    void applyState(ConfinedPointerV1State *next) override;
 
     ConfinedPointerV1Interface *q;
     ConfinedPointerV1Interface::LifeTime lifeTime;
-    QRegion region;
-    QRegion pendingRegion;
-    bool hasPendingRegion = false;
     bool isConfined = false;
 
 protected:

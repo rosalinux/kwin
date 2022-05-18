@@ -239,6 +239,16 @@ void SurfaceInterfacePrivate::installIdleInhibitor(IdleInhibitorV1Interface *inh
     }
 }
 
+void SurfaceInterfacePrivate::addExtension(SurfaceExtensionInterface *extension)
+{
+    extensions.append(extension);
+}
+
+void SurfaceInterfacePrivate::removeExtension(SurfaceExtensionInterface *extension)
+{
+    extensions.removeOne(extension);
+}
+
 void SurfaceInterfacePrivate::surface_destroy_resource(Resource *)
 {
     Q_EMIT q->aboutToBeDestroyed();
@@ -323,6 +333,9 @@ void SurfaceInterfacePrivate::surface_commit(Resource *resource)
     if (pending->locks || !stashed.empty()) {
         auto stash = new SurfaceState();
         pending->mergeInto(stash);
+        for (SurfaceExtensionInterface *extension : std::as_const(extensions)) {
+            extension->surfaceStateStashed(stash->serial);
+        }
         stashed.append(stash);
     } else {
         applyState(pending);
@@ -593,15 +606,6 @@ void SurfaceInterfacePrivate::applyState(SurfaceState *next)
 
     next->mergeInto(current);
 
-    if (lockedPointer) {
-        auto lockedPointerPrivate = LockedPointerV1InterfacePrivate::get(lockedPointer);
-        lockedPointerPrivate->commit();
-    }
-    if (confinedPointer) {
-        auto confinedPointerPrivate = ConfinedPointerV1InterfacePrivate::get(confinedPointer);
-        confinedPointerPrivate->commit();
-    }
-
     if (bufferRef != current->buffer) {
         if (bufferRef) {
             bufferRef->unref();
@@ -713,6 +717,11 @@ void SurfaceInterfacePrivate::applyState(SurfaceState *next)
         auto subsurfacePrivate = SubSurfaceInterfacePrivate::get(subsurface);
         subsurfacePrivate->parentApplyState(next->serial);
     }
+
+    for (SurfaceExtensionInterface *extension : std::as_const(extensions)) {
+        extension->surfaceStateApplied(next->serial);
+    }
+
     if (role) {
         role->commit();
     }

@@ -10,6 +10,7 @@
 #include "utils.h"
 // Qt
 #include <QHash>
+#include <QQueue>
 #include <QVector>
 // Wayland
 #include "qwayland-server-wayland.h"
@@ -19,6 +20,33 @@ namespace KWaylandServer
 class IdleInhibitorV1Interface;
 class SurfaceRole;
 class ViewportInterface;
+
+class SurfaceExtensionInterface
+{
+public:
+    virtual ~SurfaceExtensionInterface() = default;
+
+    virtual void surfaceStateStashed(quint32 serial) = 0;
+    virtual void surfaceStateApplied(quint32 serial) = 0;
+};
+
+template<typename State>
+class SurfaceExtension : public SurfaceExtensionInterface
+{
+public:
+    explicit SurfaceExtension(SurfaceInterface *surface);
+    ~SurfaceExtension() override;
+
+    void surfaceStateStashed(quint32 serial) override final;
+    void surfaceStateApplied(quint32 serial) override final;
+
+    virtual void applyState(State *next) = 0;
+
+    QPointer<SurfaceInterface> m_surface;
+    State m_current;
+    State m_pending;
+    QQueue<State> m_stashed;
+};
 
 struct SurfaceState
 {
@@ -104,6 +132,9 @@ public:
     quint32 lockState(SurfaceState *state);
     void unlockState(quint32 serial);
 
+    void addExtension(SurfaceExtensionInterface *extension);
+    void removeExtension(SurfaceExtensionInterface *extension);
+
     bool computeEffectiveMapped() const;
     void updateEffectiveMapped();
 
@@ -125,6 +156,7 @@ public:
     bool mapped = false;
 
     QVector<OutputInterface *> outputs;
+    QVector<SurfaceExtensionInterface *> extensions;
 
     LockedPointerV1Interface *lockedPointer = nullptr;
     ConfinedPointerV1Interface *confinedPointer = nullptr;
@@ -154,5 +186,45 @@ private:
     QMetaObject::Connection constrainsOneShotConnection;
     QMetaObject::Connection constrainsUnboundConnection;
 };
+
+template<typename State>
+SurfaceExtension<State>::SurfaceExtension(SurfaceInterface *surface)
+    : m_surface(surface)
+{
+    auto surfacePrivate = SurfaceInterfacePrivate::get(surface);
+    surfacePrivate->addExtension(this);
+
+    m_current.serial = surfacePrivate->current->serial;
+    m_pending.serial = surfacePrivate->pending->serial;
+}
+
+template<typename State>
+SurfaceExtension<State>::~SurfaceExtension()
+{
+    if (m_surface) {
+        SurfaceInterfacePrivate::get(m_surface)->removeExtension(this);
+    }
+}
+
+template<typename State>
+void SurfaceExtension<State>::surfaceStateStashed(quint32 serial)
+{
+    State stash;
+    m_pending.mergeInto(&stash);
+    m_stashed.append(stash);
+    m_pending.serial = serial + 1;
+}
+
+template<typename State>
+void SurfaceExtension<State>::surfaceStateApplied(quint32 serial)
+{
+    if (m_pending.serial == serial) {
+        applyState(&m_pending);
+        m_pending.serial = serial + 1;
+    } else if (!m_stashed.isEmpty() && m_stashed[0].serial == serial) {
+        State stash = m_stashed.takeFirst();
+        applyState(&stash);
+    }
+}
 
 } // namespace KWaylandServer
