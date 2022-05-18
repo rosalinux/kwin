@@ -10,6 +10,9 @@
 
 namespace KWaylandServer
 {
+
+class ClientBufferNotifier;
+
 class ClientBufferPrivate
 {
 public:
@@ -17,6 +20,12 @@ public:
     {
     }
 
+    static ClientBufferPrivate *get(ClientBuffer *buffer)
+    {
+        return buffer->d_ptr.data();
+    }
+
+    ClientBufferNotifier *notifier = nullptr;
     int refCount = 0;
     wl_resource *resource = nullptr;
     bool isDestroyed = false;

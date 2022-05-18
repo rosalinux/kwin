@@ -183,6 +183,7 @@ target_sources(kwin PRIVATE
     blur_interface.cpp
     clientbuffer.cpp
     clientbufferintegration.cpp
+    clientbuffernotifier.cpp
     clientconnection.cpp
     compositor_interface.cpp
     contrast_interface.cpp

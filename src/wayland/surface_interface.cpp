@@ -6,6 +6,7 @@
 */
 #include "surface_interface.h"
 #include "clientbuffer.h"
+#include "clientbuffernotifier.h"
 #include "clientconnection.h"
 #include "compositor_interface.h"
 #include "display.h"
@@ -326,6 +327,21 @@ void SurfaceInterfacePrivate::surface_commit(Resource *resource)
     Q_UNUSED(resource)
     if (subSurface) {
         subSurface->commit();
+    }
+
+    if (pending->bufferIsSet && pending->buffer) {
+        ClientBufferNotifier *bufferNotifier = ClientBufferNotifier::get(pending->buffer);
+        if (bufferNotifier) {
+            if (bufferNotifier->start()) {
+                const quint32 serial = lockState(pending);
+                auto conn = new QMetaObject::Connection(); // TODO Plasma 6: Use one shot connections.
+                *conn = QObject::connect(bufferNotifier, &ClientBufferNotifier::ready, q, [this, serial, conn]() {
+                    unlockState(serial);
+                    QObject::disconnect(*conn);
+                    delete conn;
+                });
+            }
+        }
     }
 
     // If there are already stashed states, this one will be applied when all the previous
