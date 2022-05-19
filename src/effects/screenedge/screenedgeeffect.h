@@ -3,23 +3,21 @@
     This file is part of the KDE project.
 
     SPDX-FileCopyrightText: 2013 Martin Gräßlin <mgraesslin@kde.org>
+    SPDX-FileCopyrightText: 2022 MBition GmbH
+    SPDX-FileContributor: Kai Uwe Broulik <kai_uwe.broulik@mbition.io>
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 #ifndef KWIN_SCREEN_EDGE_EFFECT_H
 #define KWIN_SCREEN_EDGE_EFFECT_H
+
 #include <kwineffects.h>
 
 class QTimer;
-namespace Plasma
-{
-class Svg;
-}
 
 namespace KWin
 {
-class Glow;
-class GLTexture;
+class OffscreenQuickScene;
 
 class ScreenEdgeEffect : public Effect
 {
@@ -41,27 +39,10 @@ private Q_SLOTS:
     void cleanup();
 
 private:
-    void ensureGlowSvg();
-    Glow *createGlow(ElectricBorder border, qreal factor, const QRect &geometry);
-    template<typename T>
-    T *createCornerGlow(ElectricBorder border);
-    template<typename T>
-    T *createEdgeGlow(ElectricBorder border, const QSize &size);
-    QSize cornerGlowSize(ElectricBorder border);
-    Plasma::Svg *m_glow = nullptr;
-    QHash<ElectricBorder, Glow *> m_borders;
-    QTimer *m_cleanupTimer;
-};
+    OffscreenQuickScene *createGlow(ElectricBorder border, qreal factor, const QRect &geometry);
 
-class Glow
-{
-public:
-    QScopedPointer<GLTexture> texture;
-    QScopedPointer<QImage> image;
-    QSize pictureSize;
-    qreal strength;
-    QRect geometry;
-    ElectricBorder border;
+    QHash<ElectricBorder, OffscreenQuickScene *> m_borders;
+    QTimer *m_cleanupTimer;
 };
 
 }
