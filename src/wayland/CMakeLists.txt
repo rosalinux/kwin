@@ -176,7 +176,7 @@ ecm_add_qtwayland_server_protocol_kde(WaylandProtocols_xml
     BASENAME drm-lease-v1
 )
 ecm_add_qtwayland_server_protocol_kde(WaylandProtocols_xml
-    PROTOCOL ${PROJECT_SOURCE_DIR}/src/wayland/protocols/kde-lockscreenallowed-v1.xml
+    PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/kde-lockscreenallowed-v1.xml
     BASENAME kde-lockscreenallowed-v1
 )
 

@@ -52,7 +52,7 @@ if (QT_MAJOR_VERSION EQUAL "5")
     add_executable(lockscreenallowedtest lockscreenallowedtest.cpp)
     target_link_libraries(lockscreenallowedtest Qt::Widgets Qt::WaylandClient Qt::WaylandClientPrivate Wayland::Client)
     ecm_add_qtwayland_client_protocol(lockscreenallowedtest
-        PROTOCOL ${PROJECT_SOURCE_DIR}/src/wayland/protocols/kde-lockscreenallowed-v1.xml
+        PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/kde-lockscreenallowed-v1.xml
         BASENAME kde-lockscreenallowed-v1
     )
 endif()
