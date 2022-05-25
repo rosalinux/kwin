@@ -245,6 +245,9 @@ public:
     RenderLoop::VrrPolicy vrrPolicy() const;
     RgbRange rgbRange() const;
 
+    ContentType contentType() const;
+    void setContentType(ContentType contentType);
+
     bool isPlaceholder() const;
 
     virtual void setColorTransformation(const std::shared_ptr<ColorTransformation> &transformation);
@@ -351,6 +354,7 @@ private:
     bool m_isEnabled = true;
     uint32_t m_overscan = 0;
     RgbRange m_rgbRange = RgbRange::Automatic;
+    ContentType m_contentType = ContentType::None;
     friend class EffectScreenImpl; // to access m_effectScreen
 };
 

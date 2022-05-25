@@ -97,22 +97,28 @@ bool DrmConnectorMode::operator==(const DrmConnectorMode &otherMode)
     return checkIfEqual(&m_nativeMode, &otherMode.m_nativeMode);
 }
 
+// clang-format off
 DrmConnector::DrmConnector(DrmGpu *gpu, uint32_t connectorId)
     : DrmObject(gpu, connectorId, {
-                                      PropertyDefinition(QByteArrayLiteral("CRTC_ID"), Requirement::Required),
-                                      PropertyDefinition(QByteArrayLiteral("non-desktop"), Requirement::Optional),
-                                      PropertyDefinition(QByteArrayLiteral("DPMS"), Requirement::RequiredForLegacy),
-                                      PropertyDefinition(QByteArrayLiteral("EDID"), Requirement::Optional),
-                                      PropertyDefinition(QByteArrayLiteral("overscan"), Requirement::Optional),
-                                      PropertyDefinition(QByteArrayLiteral("vrr_capable"), Requirement::Optional),
-                                      PropertyDefinition(QByteArrayLiteral("underscan"), Requirement::Optional, {QByteArrayLiteral("off"), QByteArrayLiteral("on"), QByteArrayLiteral("auto")}),
-                                      PropertyDefinition(QByteArrayLiteral("underscan vborder"), Requirement::Optional),
-                                      PropertyDefinition(QByteArrayLiteral("underscan hborder"), Requirement::Optional),
-                                      PropertyDefinition(QByteArrayLiteral("Broadcast RGB"), Requirement::Optional, {QByteArrayLiteral("Automatic"), QByteArrayLiteral("Full"), QByteArrayLiteral("Limited 16:235")}),
-                                      PropertyDefinition(QByteArrayLiteral("max bpc"), Requirement::Optional),
-                                      PropertyDefinition(QByteArrayLiteral("link-status"), Requirement::Optional, {QByteArrayLiteral("Good"), QByteArrayLiteral("Bad")}),
-                                  },
-                DRM_MODE_OBJECT_CONNECTOR)
+            PropertyDefinition(QByteArrayLiteral("CRTC_ID"), Requirement::Required),
+            PropertyDefinition(QByteArrayLiteral("non-desktop"), Requirement::Optional),
+            PropertyDefinition(QByteArrayLiteral("DPMS"), Requirement::RequiredForLegacy),
+            PropertyDefinition(QByteArrayLiteral("EDID"), Requirement::Optional),
+            PropertyDefinition(QByteArrayLiteral("overscan"), Requirement::Optional),
+            PropertyDefinition(QByteArrayLiteral("vrr_capable"), Requirement::Optional),
+            PropertyDefinition(QByteArrayLiteral("underscan"), Requirement::Optional,
+                {QByteArrayLiteral("off"), QByteArrayLiteral("on"), QByteArrayLiteral("auto")}),
+            PropertyDefinition(QByteArrayLiteral("underscan vborder"), Requirement::Optional),
+            PropertyDefinition(QByteArrayLiteral("underscan hborder"), Requirement::Optional),
+            PropertyDefinition(QByteArrayLiteral("Broadcast RGB"), Requirement::Optional,
+                {QByteArrayLiteral("Automatic"), QByteArrayLiteral("Full"), QByteArrayLiteral("Limited 16:235")}),
+            PropertyDefinition(QByteArrayLiteral("max bpc"), Requirement::Optional),
+            PropertyDefinition(QByteArrayLiteral("link-status"), Requirement::Optional,
+                {QByteArrayLiteral("Good"), QByteArrayLiteral("Bad")}),
+            PropertyDefinition(QByteArrayLiteral("content type"), Requirement::Optional,
+                {QByteArrayLiteral("No Data"), QByteArrayLiteral("Graphics"), QByteArrayLiteral("Photo"), QByteArrayLiteral("Cinema"), QByteArrayLiteral("Game")})},
+        DRM_MODE_OBJECT_CONNECTOR)
+    // clang-format on
     , m_pipeline(new DrmPipeline(this))
     , m_conn(drmModeGetConnector(gpu->fd(), connectorId))
 {
@@ -485,4 +491,19 @@ QDebug &operator<<(QDebug &s, const KWin::DrmConnector *obj)
     return s;
 }
 
+DrmConnector::DrmContentType DrmConnector::kwinToDrmContentType(ContentType type)
+{
+    switch (type) {
+    case ContentType::None:
+        return DrmContentType::Graphics;
+    case ContentType::Photo:
+        return DrmContentType::Photo;
+    case ContentType::Video:
+        return DrmContentType::Cinema;
+    case ContentType::Game:
+        return DrmContentType::Game;
+    default:
+        Q_UNREACHABLE();
+    }
+}
 }

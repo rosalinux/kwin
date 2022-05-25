@@ -31,6 +31,7 @@
 #include "scenes/qpainter/scene_qpainter.h"
 #include "screens.h"
 #include "shadow.h"
+#include "surfaceitem_wayland.h"
 #include "surfaceitem_x11.h"
 #include "unmanaged.h"
 #include "useractions.h"
@@ -39,8 +40,8 @@
 #include "wayland/surface_interface.h"
 #include "wayland_server.h"
 #include "workspace.h"
-#include "x11window.h"
 #include "x11syncmanager.h"
+#include "x11window.h"
 
 #include <kwinglplatform.h>
 #include <kwingltexture.h>
@@ -642,6 +643,11 @@ void Compositor::composite(RenderLoop *renderLoop)
 
     SurfaceItem *scanoutCandidate = superLayer->delegate()->scanoutCandidate();
     renderLoop->setFullscreenSurface(scanoutCandidate);
+    if (auto surface = dynamic_cast<SurfaceItemWayland *>(scanoutCandidate)) {
+        output->setContentType(surface->surface()->contentType());
+    } else {
+        output->setContentType(ContentType::None);
+    }
 
     renderLoop->beginFrame();
     bool directScanout = false;
