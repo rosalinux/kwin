@@ -1,3 +1,4 @@
+
 /*
     SPDX-FileCopyrightText: 2014 Martin Gräßlin <mgraesslin@kde.org>
     SPDX-FileCopyrightText: 2020 Vlad Zahorodnii <vlad.zahorodnii@kde.org>
@@ -8,6 +9,7 @@
 #include "clientbuffer.h"
 #include "clientconnection.h"
 #include "compositor_interface.h"
+#include "contenttype_v1_interface.h"
 #include "display.h"
 #include "idleinhibit_v1_interface_p.h"
 #include "linuxdmabufv1clientbuffer.h"
@@ -535,6 +537,7 @@ void SurfaceState::mergeInto(SurfaceState *target)
         target->bufferTransform = bufferTransform;
         target->bufferTransformIsSet = true;
     }
+    target->contentType = contentType;
 
     *this = SurfaceState{};
     below = target->below;
@@ -1023,6 +1026,11 @@ bool SurfaceInterface::inhibitsIdle() const
 LinuxDmaBufV1Feedback *SurfaceInterface::dmabufFeedbackV1() const
 {
     return d->dmabufFeedbackV1.data();
+}
+
+KWin::ContentType SurfaceInterface::contentType() const
+{
+    return d->current.contentType;
 }
 
 QPointF SurfaceInterface::mapToBuffer(const QPointF &point) const
