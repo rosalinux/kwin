@@ -110,6 +110,7 @@ enum class QuickTileFlag {
     Right = 1 << 1,
     Top = 1 << 2,
     Bottom = 1 << 3,
+    CustomZone = 1 << 4,
     Horizontal = Left | Right,
     Vertical = Top | Bottom,
     Maximize = Left | Right | Top | Bottom,

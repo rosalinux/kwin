@@ -22,6 +22,7 @@
 #include "decorations/decorationpalette.h"
 #include "effects.h"
 #include "focuschain.h"
+#include "input.h"
 #include "outline.h"
 #include "platform.h"
 #include "screens.h"
@@ -1682,6 +1683,16 @@ void Window::finishInteractiveMoveResize(bool cancel)
     if (isElectricBorderMaximizing()) {
         setQuickTileMode(electricBorderMode());
         setElectricBorderMaximizing(false);
+    } else if (input()->keyboardModifiers() & Qt::ShiftModifier) {
+        Output *o = output();
+        setQuickTileMode(QuickTileFlag::CustomZone);
+        /*if (x() < o->geometry().x() + o->geometry().width() / 4) {
+            moveResize(QRect(o->geometry().x(), o->geometry().y(), o->geometry().width()/4, o->geometry().height()));
+        } else if (x() > o->geometry().x() + (o->geometry().width() / 4) * 2) {
+            moveResize(QRect(o->geometry().x() + (o->geometry().width() / 4) * 3, o->geometry().y(), o->geometry().width()/3, o->geometry().height()));
+        } else {
+            moveResize(QRect(o->geometry().x() + o->geometry().width() / 4, o->geometry().y(), (o->geometry().width()/4) * 2, o->geometry().height()));
+        }*/
     }
     setElectricBorderMode(QuickTileMode(QuickTileFlag::None));
 
@@ -2887,7 +2898,9 @@ void Window::keyPressEvent(uint key_code)
     key_code = key_code & ~Qt::KeyboardModifierMask;
     int delta = is_control ? 1 : is_alt ? 32
                                         : 8;
+
     QPointF pos = Cursors::self()->mouse()->pos();
+
     switch (key_code) {
     case Qt::Key_Left:
         pos.rx() -= delta;
@@ -3713,7 +3726,19 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
     if (mode & QuickTileFlag::Top) {
         ret.setBottom(ret.top() + ret.height() / 2);
     } else if (mode & QuickTileFlag::Bottom) {
+
         ret.setTop(ret.bottom() - (ret.height() - ret.height() / 2));
+    } else if (mode & QuickTileFlag::CustomZone) {
+        Output *o = output();
+        QList<QRect> zones = {
+            QRect(o->geometry().x(), o->geometry().y(), o->geometry().width() / 4, o->geometry().height()),
+            QRect(o->geometry().x() + o->geometry().width() / 4, o->geometry().y(), o->geometry().width() / 4 * 2, o->geometry().height()),
+            QRect(o->geometry().x() + o->geometry().width() / 4 * 3, o->geometry().y(), o->geometry().width() / 4, o->geometry().height())};
+        for (const auto &r : zones) {
+            if (r.contains(pos)) {
+                return r;
+            }
+        }
     }
 
     return ret;
