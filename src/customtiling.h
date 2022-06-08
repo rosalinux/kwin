@@ -46,7 +46,7 @@ Q_SIGNALS:
 
 private:
     void readSettings();
-    QRectF parseTilingJSon(const QJsonValue &val, const QString &layoutDirection, const QRectF &availableArea);
+    QRectF parseTilingJSon(const QJsonValue &val, CustomTiling::LayoutDirection layoutDirection, const QRectF &availableArea);
 
     Q_DISABLE_COPY(CustomTiling)
 
