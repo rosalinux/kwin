@@ -21,8 +21,6 @@
 #include <QUuid>
 #include <QVector>
 
-#include <QJsonValue>
-
 namespace KWin
 {
 
@@ -30,6 +28,7 @@ class EffectScreenImpl;
 class RenderLoop;
 class OutputConfiguration;
 class ColorTransformation;
+class CustomTiling;
 
 class KWIN_EXPORT OutputMode
 {
@@ -243,6 +242,8 @@ public:
     bool isPlaceholder() const;
     bool isNonDesktop() const;
 
+    CustomTiling *customTiling();
+
     QList<QRectF> customTilingZones() const;
 
     virtual void setColorTransformation(const std::shared_ptr<ColorTransformation> &transformation);
@@ -300,6 +301,7 @@ Q_SIGNALS:
     void overscanChanged();
     void vrrPolicyChanged();
     void rgbRangeChanged();
+    void informationChanged();
 
 protected:
     struct Information
@@ -335,9 +337,6 @@ protected:
     QSize orientateSize(const QSize &size) const;
 
 private:
-    QRectF parseTilingJSon(const QJsonValue &val, const QString &layoutDirection, const QRectF &availableArea);
-    void readTilingSettings();
-
     Q_DISABLE_COPY(Output)
     EffectScreenImpl *m_effectScreen = nullptr;
     int m_directScanoutCount = 0;
@@ -353,7 +352,7 @@ private:
     bool m_isEnabled = false;
     uint32_t m_overscan = 0;
     RgbRange m_rgbRange = RgbRange::Automatic;
-    QList<QRectF> m_tiles;
+    CustomTiling *m_customTiling = nullptr;
     friend class EffectScreenImpl; // to access m_effectScreen
 };
 

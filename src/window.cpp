@@ -9,6 +9,7 @@
 */
 #include "window.h"
 
+#include "customtiling.h"
 #include "output.h"
 #if KWIN_BUILD_ACTIVITIES
 #include "activities.h"
@@ -3722,7 +3723,7 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
     }
 
     if (mode & QuickTileFlag::CustomZone) {
-        const auto &zones = output()->customTilingZones();
+        const auto &zones = output()->customTiling()->tileGeometries();
         QRectF ret;
         qreal minimumDistance = std::numeric_limits<qreal>::max();
         for (const auto &r : zones) {

@@ -8,16 +8,12 @@
 */
 
 #include "output.h"
+#include "customtiling.h"
 #include "outputconfiguration.h"
-#include "workspace.h"
 
 #include <KConfigGroup>
 #include <KLocalizedString>
 #include <KSharedConfig>
-
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 
 namespace KWin
 {
@@ -67,8 +63,8 @@ OutputMode::Flags OutputMode::flags() const
 
 Output::Output(QObject *parent)
     : QObject(parent)
+    , m_customTiling(new CustomTiling(this))
 {
-    connect(Workspace::self(), &Workspace::configChanged, this, &Output::readTilingSettings);
 }
 
 Output::~Output()
@@ -293,7 +289,7 @@ void Output::setInformation(const Information &information)
 {
     m_information = information;
     m_uuid = generateOutputId(eisaId(), model(), serialNumber(), name());
-    readTilingSettings();
+    Q_EMIT informationChanged();
 }
 
 QSize Output::orientateSize(const QSize &size) const
@@ -411,18 +407,9 @@ bool Output::isNonDesktop() const
     return m_information.nonDesktop;
 }
 
-QList<QRectF> Output::customTilingZones() const
+CustomTiling *Output::customTiling()
 {
-    QList<QRectF> tilingZones;
-    for (const auto &r : m_tiles) {
-        const auto &geom = geometry();
-        tilingZones << QRectF(geom.x() + r.x() * geom.width(),
-                              geom.y() + r.y() * geom.height(),
-                              r.width() * geom.width(),
-                              r.height() * geom.height());
-    }
-
-    return tilingZones;
+    return m_customTiling;
 }
 
 Output::RgbRange Output::rgbRange() const
@@ -441,95 +428,6 @@ void Output::setRgbRangeInternal(RgbRange range)
 void Output::setColorTransformation(const std::shared_ptr<ColorTransformation> &transformation)
 {
     Q_UNUSED(transformation);
-}
-
-QRectF Output::parseTilingJSon(const QJsonValue &val, const QString &layoutDirection, const QRectF &availableArea)
-{
-    if (availableArea.isEmpty()) {
-        return availableArea;
-    }
-
-    auto ret = availableArea;
-
-    if (val.isObject()) {
-        const auto &obj = val.toObject();
-        if (obj.contains(QStringLiteral("tiles"))) {
-            // It's a layout
-            const auto arr = obj.value(QStringLiteral("tiles"));
-            const auto direction = obj.value(QStringLiteral("layoutDirection"));
-            if (arr.isArray() && direction.isString()) {
-                const QString dir = direction.toString();
-                auto avail = availableArea;
-                if (dir == QStringLiteral("horizontal")) {
-                    const auto height = obj.value(QStringLiteral("height"));
-                    if (height.isDouble()) {
-                        avail.setHeight(height.toDouble());
-                    }
-                    parseTilingJSon(arr, dir, avail);
-                    ret.setTop(avail.bottom());
-                    return ret;
-                } else if (dir == QStringLiteral("vertical")) {
-                    const auto width = obj.value(QStringLiteral("width"));
-                    if (width.isDouble()) {
-                        avail.setWidth(width.toDouble());
-                    }
-                    parseTilingJSon(arr, dir, avail);
-                    ret.setLeft(avail.right());
-                    return ret;
-                }
-            }
-        } else if (layoutDirection == QStringLiteral("horizontal")) {
-            QRectF rect(availableArea.x(), availableArea.y(), 0, availableArea.height());
-            const auto width = obj.value(QStringLiteral("width"));
-            if (width.isDouble()) {
-                rect.setWidth(qMin(width.toDouble(), availableArea.width()));
-            }
-            if (!rect.isEmpty()) {
-                m_tiles << rect;
-            }
-            ret.setLeft(ret.left() + rect.width());
-            return ret;
-        } else if (layoutDirection == QStringLiteral("vertical")) {
-            QRectF rect(availableArea.x(), availableArea.y(), availableArea.width(), 0);
-            const auto height = obj.value(QStringLiteral("height"));
-            if (height.isDouble()) {
-                rect.setHeight(qMin(height.toDouble(), availableArea.height()));
-            }
-            if (!rect.isEmpty()) {
-                m_tiles << rect;
-            }
-            ret.setTop(ret.top() + rect.height());
-            return ret;
-        }
-    } else if (val.isArray()) {
-        const auto arr = val.toArray();
-        auto avail = availableArea;
-        for (auto it = arr.cbegin(); it != arr.cend(); it++) {
-            if ((*it).isObject()) {
-                avail = parseTilingJSon(*it, layoutDirection, avail);
-            }
-        }
-        return avail;
-    }
-    return ret;
-}
-
-void Output::readTilingSettings()
-{
-    m_tiles.clear();
-
-    KConfigGroup cg = kwinApp()->config()->group(QStringLiteral("Tiling"));
-    cg = KConfigGroup(&cg, uuid().toString(QUuid::WithoutBraces));
-
-    QJsonParseError error;
-    QJsonDocument doc = QJsonDocument::fromJson(cg.readEntry("tiles", QByteArray()), &error);
-
-    if (error.error != QJsonParseError::NoError) {
-        qCWarning(KWIN_CORE) << "Parse error in tiles configuration for monitor" << uuid().toString(QUuid::WithoutBraces) << ":" << error.errorString();
-        return;
-    }
-
-    parseTilingJSon(doc.object(), QString(), QRectF(0, 0, 1, 1));
 }
 
 } // namespace KWin

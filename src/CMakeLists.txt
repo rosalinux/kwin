@@ -40,6 +40,7 @@ target_sources(kwin PRIVATE
     cursor.cpp
     cursordelegate_opengl.cpp
     cursordelegate_qpainter.cpp
+    customtiling.cpp
     dbusinterface.cpp
     debug_console.cpp
     decorationitem.cpp
