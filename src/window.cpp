@@ -1803,6 +1803,7 @@ void Window::handleInteractiveMoveResize(const QPointF &local, const QPointF &gl
             outline()->show(r, moveResizeGeometry());
         }
     } else {
+        //FIXME
         outline()->hide();
     }
 }
@@ -3722,12 +3723,17 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
 
     if (mode & QuickTileFlag::CustomZone) {
         const auto &zones = output()->customTilingZones();
+        QRectF ret;
+        qreal minimumDistance = std::numeric_limits<qreal>::max();
         for (const auto &r : zones) {
-            if (r.contains(pos)) {
-                return r;
+            // It's possible for tiles to overlap, so take the one which center is nearer to mouse pos
+            const qreal distance = (r.center() - pos).manhattanLength();
+            if (r.contains(pos) && distance < minimumDistance) {
+                minimumDistance = distance;
+                ret = r;
             }
         }
-        return QRectF();
+        return ret.toRect();
     }
 
     QRectF ret = workspace()->clientArea(MaximizeArea, this, pos);
