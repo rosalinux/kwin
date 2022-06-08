@@ -404,6 +404,26 @@ bool Output::isNonDesktop() const
     return m_information.nonDesktop;
 }
 
+QList<QRectF> Output::customTilingZones() const
+{
+    const QList<QRectF> zones = {
+        QRectF(0, 0, 0.25, 0.5),
+        QRectF(0, 0.5, 0.25, 0.5),
+        QRectF(0.25, 0, 0.25 * 2, 1),
+        QRectF(0.25 * 3, 0, 0.25, 1)};
+
+    QList<QRectF> tilingZones;
+    for (const auto &r : zones) {
+        const auto &geom = geometry();
+        tilingZones << QRectF(geom.x() + r.x() * geom.width(),
+                              geom.y() + r.y() * geom.height(),
+                              r.width() * geom.width(),
+                              r.height() * geom.height());
+    }
+
+    return tilingZones;
+}
+
 Output::RgbRange Output::rgbRange() const
 {
     return m_rgbRange;

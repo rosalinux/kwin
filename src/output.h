@@ -241,6 +241,8 @@ public:
     bool isPlaceholder() const;
     bool isNonDesktop() const;
 
+    QList<QRectF> customTilingZones() const;
+
     virtual void setColorTransformation(const std::shared_ptr<ColorTransformation> &transformation);
 
 Q_SIGNALS:

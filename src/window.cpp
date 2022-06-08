@@ -1684,15 +1684,8 @@ void Window::finishInteractiveMoveResize(bool cancel)
         setQuickTileMode(electricBorderMode());
         setElectricBorderMaximizing(false);
     } else if (input()->keyboardModifiers() & Qt::ShiftModifier) {
-        Output *o = output();
+        outline()->hide();
         setQuickTileMode(QuickTileFlag::CustomZone);
-        /*if (x() < o->geometry().x() + o->geometry().width() / 4) {
-            moveResize(QRect(o->geometry().x(), o->geometry().y(), o->geometry().width()/4, o->geometry().height()));
-        } else if (x() > o->geometry().x() + (o->geometry().width() / 4) * 2) {
-            moveResize(QRect(o->geometry().x() + (o->geometry().width() / 4) * 3, o->geometry().y(), o->geometry().width()/3, o->geometry().height()));
-        } else {
-            moveResize(QRect(o->geometry().x() + o->geometry().width() / 4, o->geometry().y(), (o->geometry().width()/4) * 2, o->geometry().height()));
-        }*/
     }
     setElectricBorderMode(QuickTileMode(QuickTileFlag::None));
 
@@ -1801,6 +1794,16 @@ void Window::handleInteractiveMoveResize(const QPointF &local, const QPointF &gl
         } else if (quickTileMode() == QuickTileMode(QuickTileFlag::None) && isResizable()) {
             checkQuickTilingMaximizationZones(global.x(), global.y());
         }
+    }
+    if (input()->keyboardModifiers() & Qt::ShiftModifier) {
+        const auto &r = quickTileGeometry(QuickTileFlag::CustomZone, Cursors::self()->mouse()->pos());
+        if (r.isEmpty()) {
+            outline()->hide();
+        } else {
+            outline()->show(r, moveResizeGeometry());
+        }
+    } else {
+        outline()->hide();
     }
 }
 
@@ -3717,7 +3720,18 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
         }
     }
 
+    if (mode & QuickTileFlag::CustomZone) {
+        const auto &zones = output()->customTilingZones();
+        for (const auto &r : zones) {
+            if (r.contains(pos)) {
+                return r;
+            }
+        }
+        return QRectF();
+    }
+
     QRectF ret = workspace()->clientArea(MaximizeArea, this, pos);
+
     if (mode & QuickTileFlag::Left) {
         ret.setRight(ret.left() + ret.width() / 2);
     } else if (mode & QuickTileFlag::Right) {
@@ -3726,7 +3740,6 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
     if (mode & QuickTileFlag::Top) {
         ret.setBottom(ret.top() + ret.height() / 2);
     } else if (mode & QuickTileFlag::Bottom) {
-
         ret.setTop(ret.bottom() - (ret.height() - ret.height() / 2));
     } else if (mode & QuickTileFlag::CustomZone) {
         Output *o = output();
@@ -3888,7 +3901,10 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
 
         m_quickTileMode = mode;
         if (mode != QuickTileMode(QuickTileFlag::None)) {
-            moveResize(quickTileGeometry(mode, whichScreen));
+            const auto &r = quickTileGeometry(mode, whichScreen);
+            if (!r.isEmpty()) {
+                moveResize(r);
+            }
         }
     }
 
