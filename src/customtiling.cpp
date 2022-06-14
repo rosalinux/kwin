@@ -9,6 +9,7 @@
 
 #include "customtiling.h"
 #include "output.h"
+#include "virtualdesktops.h"
 #include "workspace.h"
 
 #include <KConfigGroup>
@@ -37,8 +38,8 @@ CustomTiling::~CustomTiling()
 QList<QRectF> CustomTiling::tileGeometries() const
 {
     QList<QRectF> geometries;
+    const QRect geom = workspace()->clientArea(MaximizeArea, m_output, VirtualDesktopManager::self()->currentDesktop());
     for (const auto &r : m_tiles) {
-        const auto &geom = m_output->geometry();
         geometries << QRectF(geom.x() + r.x() * geom.width(),
                              geom.y() + r.y() * geom.height(),
                              r.width() * geom.width(),
