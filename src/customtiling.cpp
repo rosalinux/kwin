@@ -69,29 +69,38 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, CustomTiling::Layout
 
     if (val.isObject()) {
         const auto &obj = val.toObject();
-        if (obj.contains(QStringLiteral("tiles"))) {
-            // It's a layout
-            const auto arr = obj.value(QStringLiteral("tiles"));
-            const auto direction = obj.value(QStringLiteral("layoutDirection"));
-            if (arr.isArray() && direction.isString()) {
-                const LayoutDirection dir = strToLayoutDirection(direction.toString());
-                auto avail = availableArea;
-                if (dir == LayoutDirection::Horizontal) {
-                    const auto height = obj.value(QStringLiteral("height"));
-                    if (height.isDouble()) {
-                        avail.setHeight(height.toDouble());
+        if (obj.contains(QStringLiteral("tiles")) || obj.contains(QStringLiteral("floatingTiles"))) {
+            if (obj.contains(QStringLiteral("floatingTiles"))) {
+                // Are there floating tiles?
+                const auto arr = obj.value(QStringLiteral("floatingTiles"));
+                if (arr.isArray()) {
+                    parseTilingJSon(arr, LayoutDirection::Floating, QRectF(0, 0, 1, 1));
+                }
+            }
+            if (obj.contains(QStringLiteral("tiles"))) {
+                // It's a layout
+                const auto arr = obj.value(QStringLiteral("tiles"));
+                const auto direction = obj.value(QStringLiteral("layoutDirection"));
+                if (arr.isArray() && direction.isString()) {
+                    const LayoutDirection dir = strToLayoutDirection(direction.toString());
+                    auto avail = availableArea;
+                    if (dir == LayoutDirection::Horizontal) {
+                        const auto height = obj.value(QStringLiteral("height"));
+                        if (height.isDouble()) {
+                            avail.setHeight(height.toDouble());
+                        }
+                        parseTilingJSon(arr, dir, avail);
+                        ret.setTop(avail.bottom());
+                        return ret;
+                    } else if (dir == LayoutDirection::Vertical) {
+                        const auto width = obj.value(QStringLiteral("width"));
+                        if (width.isDouble()) {
+                            avail.setWidth(width.toDouble());
+                        }
+                        parseTilingJSon(arr, dir, avail);
+                        ret.setLeft(avail.right());
+                        return ret;
                     }
-                    parseTilingJSon(arr, dir, avail);
-                    ret.setTop(avail.bottom());
-                    return ret;
-                } else if (dir == LayoutDirection::Vertical) {
-                    const auto width = obj.value(QStringLiteral("width"));
-                    if (width.isDouble()) {
-                        avail.setWidth(width.toDouble());
-                    }
-                    parseTilingJSon(arr, dir, avail);
-                    ret.setLeft(avail.right());
-                    return ret;
                 }
             }
         } else if (layoutDirection == LayoutDirection::Horizontal) {
@@ -116,6 +125,15 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, CustomTiling::Layout
             }
             ret.setTop(ret.top() + rect.height());
             return ret;
+        } else if (layoutDirection == LayoutDirection::Floating) {
+            QRectF rect(obj.value(QStringLiteral("x")).toDouble(),
+                        obj.value(QStringLiteral("y")).toDouble(),
+                        obj.value(QStringLiteral("width")).toDouble(),
+                        obj.value(QStringLiteral("height")).toDouble());
+            if (!rect.isEmpty()) {
+                m_tiles << rect;
+            }
+            return availableArea;
         }
     } else if (val.isArray()) {
         const auto arr = val.toArray();
