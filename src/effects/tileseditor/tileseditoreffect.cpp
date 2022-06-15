@@ -4,6 +4,7 @@
 */
 
 #include "tileseditoreffect.h"
+#include "tileseditorconfig.h"
 
 #include <QAction>
 #include <QQuickItem>
@@ -50,6 +51,12 @@ QVariantMap TilesEditorEffect::initialProperties(EffectScreen *screen)
     };
 }
 
+void TilesEditorEffect::reconfigure(ReconfigureFlags)
+{
+    TilesEditorConfig::self()->read();
+    setAnimationDuration(animationTime(200));
+}
+
 void TilesEditorEffect::toggle()
 {
     if (!isRunning()) {
@@ -66,16 +73,36 @@ void TilesEditorEffect::activate()
 
 void TilesEditorEffect::deactivate(int timeout)
 {
-    const auto screenViews = views();
-    for (QuickSceneView *view : screenViews) {
-        QMetaObject::invokeMethod(view->rootItem(), "stop");
-    }
     m_shutdownTimer->start(timeout);
 }
 
 void TilesEditorEffect::realDeactivate()
 {
     setRunning(false);
+}
+
+int TilesEditorEffect::animationDuration() const
+{
+    return m_animationDuration;
+}
+
+void TilesEditorEffect::setAnimationDuration(int duration)
+{
+    if (m_animationDuration != duration) {
+        m_animationDuration = duration;
+        Q_EMIT animationDurationChanged();
+    }
+}
+
+void TilesEditorEffect::grabbedKeyboardEvent(QKeyEvent *keyEvent)
+{
+    if (m_toggleShortcut.contains(keyEvent->key() | keyEvent->modifiers())) {
+        if (keyEvent->type() == QEvent::KeyPress) {
+            toggle();
+        }
+        return;
+    }
+    QuickSceneEffect::grabbedKeyboardEvent(keyEvent);
 }
 
 } // namespace KWin

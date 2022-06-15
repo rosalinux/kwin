@@ -14,14 +14,23 @@ import org.kde.plasma.components 3.0 as PlasmaComponents
 import org.kde.plasma.extras 2.0 as PlasmaExtras
 import org.kde.KWin.Effect.WindowView 1.0
 
-Item {
+FocusScope {
     id: root
+    focus: true
 
-    Keys.onEscapePressed: effect.deactivate();
+    Keys.onEscapePressed: {
+        root.active = false;
+        effect.deactivate(effect.animationDuration);
+    }
 
     required property QtObject effect
     required property QtObject targetScreen
 
+    property bool active: false
+
+    Component.onCompleted: {
+        root.active = true;
+    }
 
     Repeater {
         model: KWinComponents.ClientFilterModel {
@@ -56,23 +65,15 @@ Item {
                     margins: PlasmaCore.Units.smallSpacing
                 }
                 radius: 3
-                opacity: 0.3
+                opacity: root.active ? 0.3 : 0
                 color: PlasmaCore.Theme.backgroundColor
                 border.color: PlasmaCore.Theme.textColor
-            }
-        }
-    }
-    RowLayout {
-        z: 999
-        PlasmaComponents.Button {
-            text: "close"
-            onClicked: effect.deactivate(0);
-        }
-        PlasmaComponents.Button {
-            text: "print"
-            onClicked: {
-                print(root.targetScreen)
-                print(KWinComponents.Workspace.customTilingForScreen(targetScreen.name))
+                Behavior on opacity {
+                    OpacityAnimator {
+                        duration: effect.animationDuration
+                        easing.type: Easing.OutCubic
+                    }
+                }
             }
         }
     }
