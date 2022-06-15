@@ -33,10 +33,37 @@ class EglGbmBackend;
 class SurfaceItem;
 class GLTexture;
 class GbmBuffer;
+class GbmSwapchain;
 
-class EglGbmLayerSurface : public QObject
+class GbmSwapchainWrapper
 {
-    Q_OBJECT
+public:
+    GbmSwapchainWrapper(const std::shared_ptr<GbmSwapchain> &swapchain, EglGbmBackend *backend);
+    GbmSwapchainWrapper(const std::shared_ptr<GbmSurface> &surface, EglGbmBackend *backend);
+
+    QSize size() const;
+    uint32_t format() const;
+    QVector<uint64_t> modifiers() const;
+    uint32_t flags() const;
+
+    bool makeContextCurrent() const;
+    std::shared_ptr<GbmBuffer> swapBuffers(const QRegion &dirty);
+    void aboutToStartPainting(DrmOutput *output, const QRegion &damagedRegion);
+    QRegion repaintRegion() const;
+    GLFramebuffer *fbo() const;
+
+    std::shared_ptr<GbmBuffer> testBuffer();
+
+private:
+    EglGbmBackend *m_backend;
+    const std::shared_ptr<GbmSurface> m_surface;
+    const std::shared_ptr<GbmSwapchain> m_swapchain;
+    std::shared_ptr<GbmBuffer> m_swapchainBuffer;
+    QRegion m_repaint;
+};
+
+class EglGbmLayerSurface
+{
 public:
     EglGbmLayerSurface(DrmGpu *gpu, EglGbmBackend *eglBackend);
     ~EglGbmLayerSurface();
@@ -55,7 +82,7 @@ private:
     bool checkGbmSurface(const QSize &size, const QMap<uint32_t, QVector<uint64_t>> &formats, uint32_t flags);
     bool createGbmSurface(const QSize &size, uint32_t format, const QVector<uint64_t> &modifiers, uint32_t flags);
     bool createGbmSurface(const QSize &size, const QMap<uint32_t, QVector<uint64_t>> &formats, uint32_t flags);
-    bool doesGbmSurfaceFit(GbmSurface *surf, const QSize &size, const QMap<uint32_t, QVector<uint64_t>> &formats) const;
+    bool doesGbmSurfaceFit(GbmSwapchainWrapper *surf, const QSize &size, const QMap<uint32_t, QVector<uint64_t>> &formats) const;
 
     bool doesShadowBufferFit(ShadowBuffer *buffer, const QSize &size, DrmPlane::Transformations renderOrientation, DrmPlane::Transformations bufferOrientation) const;
     bool doesSwapchainFit(DumbSwapchain *swapchain) const;
@@ -74,8 +101,8 @@ private:
 
     QRegion m_currentDamage;
     std::shared_ptr<GbmBuffer> m_currentBuffer;
-    std::shared_ptr<GbmSurface> m_gbmSurface;
-    std::shared_ptr<GbmSurface> m_oldGbmSurface;
+    std::shared_ptr<GbmSwapchainWrapper> m_gbmSurface;
+    std::shared_ptr<GbmSwapchainWrapper> m_oldGbmSurface;
     std::shared_ptr<ShadowBuffer> m_shadowBuffer;
     std::shared_ptr<ShadowBuffer> m_oldShadowBuffer;
     std::shared_ptr<DumbSwapchain> m_importSwapchain;

@@ -18,8 +18,7 @@ namespace KWin
 {
 
 DumbSwapchain::DumbSwapchain(DrmGpu *gpu, const QSize &size, uint32_t drmFormat)
-    : m_size(size)
-    , m_format(drmFormat)
+    : DrmSurface(gpu, size, drmFormat)
 {
     for (int i = 0; i < 2; i++) {
         auto buffer = DrmDumbBuffer::createDumbBuffer(gpu, size, drmFormat);
@@ -70,19 +69,9 @@ void DumbSwapchain::releaseBuffer(const std::shared_ptr<DrmDumbBuffer> &buffer, 
     m_damageJournal.add(damage);
 }
 
-uint32_t DumbSwapchain::drmFormat() const
-{
-    return m_format;
-}
-
 qsizetype DumbSwapchain::slotCount() const
 {
     return m_slots.count();
-}
-
-QSize DumbSwapchain::size() const
-{
-    return m_size;
 }
 
 bool DumbSwapchain::isEmpty() const

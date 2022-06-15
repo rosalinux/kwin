@@ -405,7 +405,7 @@ public:
      * does not take the ownership of the framebuffer object handle.
      */
     GLFramebuffer(GLuint handle, const QSize &size);
-    ~GLFramebuffer();
+    virtual ~GLFramebuffer();
 
     /**
      * Returns the framebuffer object handle to this framebuffer object.

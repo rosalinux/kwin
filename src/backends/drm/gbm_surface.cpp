@@ -24,11 +24,10 @@ namespace KWin
 {
 
 GbmSurface::GbmSurface(EglGbmBackend *backend, const QSize &size, uint32_t format, const QVector<uint64_t> &modifiers, uint32_t flags, gbm_surface *surface, EGLSurface eglSurface)
-    : m_surface(surface)
+    : DrmSurface(backend->gpu(), size, format)
+    , m_surface(surface)
     , m_eglBackend(backend)
     , m_eglSurface(eglSurface)
-    , m_size(size)
-    , m_format(format)
     , m_modifiers(modifiers)
     , m_flags(flags)
     , m_fbo(new GLFramebuffer(0, size))
@@ -89,16 +88,6 @@ GLFramebuffer *GbmSurface::fbo() const
 EGLSurface GbmSurface::eglSurface() const
 {
     return m_eglSurface;
-}
-
-QSize GbmSurface::size() const
-{
-    return m_size;
-}
-
-uint32_t GbmSurface::format() const
-{
-    return m_format;
 }
 
 QVector<uint64_t> GbmSurface::modifiers() const

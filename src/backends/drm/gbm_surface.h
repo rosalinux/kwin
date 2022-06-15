@@ -15,6 +15,7 @@
 #include <variant>
 
 #include "drm_buffer_gbm.h"
+#include "drm_surface.h"
 #include "utils/damagejournal.h"
 
 struct gbm_device;
@@ -26,7 +27,7 @@ namespace KWin
 class GLFramebuffer;
 class EglGbmBackend;
 
-class GbmSurface : public std::enable_shared_from_this<GbmSurface>
+class GbmSurface : public std::enable_shared_from_this<GbmSurface>, public DrmSurface
 {
 public:
     explicit GbmSurface(EglGbmBackend *backend, const QSize &size, uint32_t format, const QVector<uint64_t> &modifiers, uint32_t flags, gbm_surface *surface, EGLSurface eglSurface);
@@ -40,9 +41,7 @@ public:
     GLFramebuffer *fbo() const;
 
     EGLSurface eglSurface() const;
-    QSize size() const;
     bool isValid() const;
-    uint32_t format() const;
     QVector<uint64_t> modifiers() const;
     uint32_t flags() const;
     int bufferAge() const;
@@ -60,8 +59,6 @@ private:
     gbm_surface *m_surface;
     EglGbmBackend *const m_eglBackend;
     EGLSurface m_eglSurface = EGL_NO_SURFACE;
-    QSize m_size;
-    const uint32_t m_format;
     const QVector<uint64_t> m_modifiers;
     const uint32_t m_flags;
     int m_bufferAge = 0;

@@ -11,6 +11,7 @@
 #include "config-kwin.h"
 #include "drm_buffer_gbm.h"
 #include "drm_dumb_buffer.h"
+#include "drm_gbm_swapchain.h"
 #include "drm_gpu.h"
 #include "drm_output.h"
 #include "dumb_swapchain.h"
@@ -18,6 +19,7 @@
 #include "egl_gbm_backend.h"
 #include "gbm_surface.h"
 #include "kwineglutils_p.h"
+#include "kwinglplatform.h"
 #include "logging.h"
 #include "shadowbuffer.h"
 #include "surfaceitem_wayland.h"
@@ -31,6 +33,106 @@
 
 namespace KWin
 {
+
+GbmSwapchainWrapper::GbmSwapchainWrapper(const std::shared_ptr<GbmSwapchain> &swapchain, EglGbmBackend *backend)
+    : m_backend(backend)
+    , m_swapchain(swapchain)
+{
+    auto [buffer, region] = swapchain->acquire({});
+    m_swapchainBuffer = buffer;
+    makeContextCurrent();
+    m_swapchainBuffer->createFbo(backend);
+}
+
+GbmSwapchainWrapper::GbmSwapchainWrapper(const std::shared_ptr<GbmSurface> &surface, EglGbmBackend *backend)
+    : m_backend(backend)
+    , m_surface(surface)
+{
+}
+
+bool GbmSwapchainWrapper::makeContextCurrent() const
+{
+    EGLSurface surface = m_surface ? m_surface->eglSurface() : EGL_NO_SURFACE;
+    if (eglMakeCurrent(m_backend->eglDisplay(), surface, surface, m_backend->context()) == EGL_FALSE) {
+        qCCritical(KWIN_DRM) << "eglMakeCurrent failed:" << getEglErrorString();
+        return false;
+    }
+    if (!GLPlatform::instance()->isGLES()) {
+        glDrawBuffer(GL_BACK);
+        glReadBuffer(GL_BACK);
+    }
+    return true;
+}
+
+QSize GbmSwapchainWrapper::size() const
+{
+    return m_surface ? m_surface->size() : m_swapchain->size();
+}
+
+uint32_t GbmSwapchainWrapper::format() const
+{
+    return m_surface ? m_surface->format() : m_swapchain->format();
+}
+
+QVector<uint64_t> GbmSwapchainWrapper::modifiers() const
+{
+    return m_surface ? m_surface->modifiers() : QVector{m_swapchain->modifier()};
+}
+
+uint32_t GbmSwapchainWrapper::flags() const
+{
+    return m_surface ? m_surface->flags() : m_swapchain->flags();
+}
+
+std::shared_ptr<GbmBuffer> GbmSwapchainWrapper::swapBuffers(const QRegion &dirty)
+{
+    if (m_surface) {
+        auto ret = m_surface->swapBuffers(dirty);
+        m_repaint = m_surface->repaintRegion();
+        return ret;
+    } else {
+        auto [buffer, repaint] = m_swapchain->acquire(dirty);
+        m_swapchainBuffer = buffer;
+        makeContextCurrent();
+        m_swapchainBuffer->createFbo(m_backend);
+        m_repaint = repaint;
+        return buffer;
+    }
+}
+
+void GbmSwapchainWrapper::aboutToStartPainting(DrmOutput *output, const QRegion &damagedRegion)
+{
+    if (m_surface && m_surface->bufferAge() > 0 && !damagedRegion.isEmpty() && m_backend->supportsPartialUpdate()) {
+        QVector<EGLint> rects = output->regionToRects(damagedRegion);
+        const bool correct = eglSetDamageRegionKHR(m_backend->eglDisplay(), m_surface->eglSurface(), rects.data(), rects.count() / 4);
+        if (!correct) {
+            qCWarning(KWIN_DRM) << "eglSetDamageRegionKHR failed:" << getEglErrorString();
+        }
+    }
+}
+
+QRegion GbmSwapchainWrapper::repaintRegion() const
+{
+    return m_repaint;
+}
+
+GLFramebuffer *GbmSwapchainWrapper::fbo() const
+{
+    return m_surface ? m_surface->fbo() : m_swapchainBuffer->fbo();
+}
+
+std::shared_ptr<GbmBuffer> GbmSwapchainWrapper::testBuffer()
+{
+    if (m_surface) {
+        if (!makeContextCurrent()) {
+            return nullptr;
+        }
+        glClear(GL_COLOR_BUFFER_BIT);
+        return m_surface->swapBuffers(infiniteRegion());
+    } else {
+        return m_swapchainBuffer;
+    }
+}
 
 EglGbmLayerSurface::EglGbmLayerSurface(DrmGpu *gpu, EglGbmBackend *eglBackend)
     : m_gpu(gpu)
@@ -105,12 +207,8 @@ OutputLayerBeginFrameInfo EglGbmLayerSurface::startRendering(const QSize &buffer
 
 void EglGbmLayerSurface::aboutToStartPainting(DrmOutput *output, const QRegion &damagedRegion)
 {
-    if (m_gbmSurface && m_gbmSurface->bufferAge() > 0 && !damagedRegion.isEmpty() && m_eglBackend->supportsPartialUpdate()) {
-        QVector<EGLint> rects = output->regionToRects(damagedRegion);
-        const bool correct = eglSetDamageRegionKHR(m_eglBackend->eglDisplay(), m_gbmSurface->eglSurface(), rects.data(), rects.count() / 4);
-        if (!correct) {
-            qCWarning(KWIN_DRM) << "eglSetDamageRegionKHR failed:" << getEglErrorString();
-        }
+    if (m_gbmSurface) {
+        m_gbmSurface->aboutToStartPainting(output, damagedRegion);
     }
 }
 
@@ -172,29 +270,50 @@ bool EglGbmLayerSurface::createGbmSurface(const QSize &size, uint32_t format, co
         return false;
     }
 
-    if (allowModifiers) {
-        const auto ret = GbmSurface::createSurface(m_eglBackend, size, format, modifiers, config);
-        if (const auto surface = std::get_if<std::shared_ptr<GbmSurface>>(&ret)) {
-            m_oldGbmSurface = m_gbmSurface;
-            m_gbmSurface = *surface;
-            return true;
-        } else if (std::get<GbmSurface::Error>(ret) != GbmSurface::Error::ModifiersUnsupported) {
-            return false;
-        }
-    }
     int gbmFlags = flags | GBM_BO_USE_RENDERING;
     if (m_gpu == m_eglBackend->gpu()) {
         gbmFlags |= GBM_BO_USE_SCANOUT;
     } else {
         gbmFlags |= GBM_BO_USE_LINEAR;
     }
-    const auto ret = GbmSurface::createSurface(m_eglBackend, size, format, gbmFlags, config);
-    if (const auto surface = std::get_if<std::shared_ptr<GbmSurface>>(&ret)) {
-        m_oldGbmSurface = m_gbmSurface;
-        m_gbmSurface = *surface;
-        return true;
+
+    if (m_eglBackend->supportsPartialUpdate()) {
+        if (allowModifiers) {
+            const auto ret = GbmSurface::createSurface(m_eglBackend, size, format, modifiers, config);
+            if (const auto surface = std::get_if<std::shared_ptr<GbmSurface>>(&ret)) {
+                m_oldGbmSurface = m_gbmSurface;
+                m_gbmSurface = std::make_shared<GbmSwapchainWrapper>(*surface, m_eglBackend);
+                return true;
+            } else if (std::get<GbmSurface::Error>(ret) != GbmSurface::Error::ModifiersUnsupported) {
+                return false;
+            }
+        }
+        const auto ret = GbmSurface::createSurface(m_eglBackend, size, format, gbmFlags, config);
+        if (const auto surface = std::get_if<std::shared_ptr<GbmSurface>>(&ret)) {
+            m_oldGbmSurface = m_gbmSurface;
+            m_gbmSurface = std::make_shared<GbmSwapchainWrapper>(*surface, m_eglBackend);
+            return true;
+        } else {
+            return false;
+        }
     } else {
-        return false;
+        if (allowModifiers) {
+            const auto ret = GbmSwapchain::createSwapchain(m_gpu, size, format, modifiers, GBM_BO_USE_SCANOUT);
+            if (const auto swapchain = std::get_if<std::shared_ptr<GbmSwapchain>>(&ret)) {
+                m_oldGbmSurface = m_gbmSurface;
+                m_gbmSurface = std::make_shared<GbmSwapchainWrapper>(*swapchain, m_eglBackend);
+            } else if (std::get<GbmSwapchain::Error>(ret) != GbmSwapchain::Error::ModifiersUnsupported) {
+                return false;
+            }
+        }
+        const auto ret = GbmSwapchain::createSwapchain(m_gpu, size, format, QVector<uint64_t>{}, flags | GBM_BO_USE_SCANOUT);
+        if (const auto swapchain = std::get_if<std::shared_ptr<GbmSwapchain>>(&ret)) {
+            m_oldGbmSurface = m_gbmSurface;
+            m_gbmSurface = std::make_shared<GbmSwapchainWrapper>(*swapchain, m_eglBackend);
+            return true;
+        } else {
+            return false;
+        }
     }
 }
 
@@ -231,7 +350,7 @@ bool EglGbmLayerSurface::createGbmSurface(const QSize &size, const QMap<uint32_t
     return false;
 }
 
-bool EglGbmLayerSurface::doesGbmSurfaceFit(GbmSurface *surf, const QSize &size, const QMap<uint32_t, QVector<uint64_t>> &formats) const
+bool EglGbmLayerSurface::doesGbmSurfaceFit(GbmSwapchainWrapper *surf, const QSize &size, const QMap<uint32_t, QVector<uint64_t>> &formats) const
 {
     return surf && surf->size() == size
         && formats.contains(surf->format())
@@ -314,7 +433,7 @@ std::shared_ptr<DrmFramebuffer> EglGbmLayerSurface::importWithCpu()
 
 bool EglGbmLayerSurface::doesSwapchainFit(DumbSwapchain *swapchain) const
 {
-    return swapchain && swapchain->size() == m_gbmSurface->size() && swapchain->drmFormat() == m_gbmSurface->format();
+    return swapchain && swapchain->size() == m_gbmSurface->size() && swapchain->format() == m_gbmSurface->format();
 }
 
 EglGbmBackend *EglGbmLayerSurface::eglBackend() const
@@ -341,11 +460,10 @@ std::shared_ptr<GLTexture> EglGbmLayerSurface::texture() const
 
 std::shared_ptr<DrmFramebuffer> EglGbmLayerSurface::renderTestBuffer(const QSize &bufferSize, const QMap<uint32_t, QVector<uint64_t>> &formats, uint32_t additionalFlags)
 {
-    if (!checkGbmSurface(bufferSize, formats, additionalFlags) || !m_gbmSurface->makeContextCurrent()) {
+    if (!checkGbmSurface(bufferSize, formats, additionalFlags)) {
         return nullptr;
     }
-    glClear(GL_COLOR_BUFFER_BIT);
-    m_currentBuffer = m_gbmSurface->swapBuffers(infiniteRegion());
+    m_currentBuffer = m_gbmSurface->testBuffer();
     if (m_currentBuffer) {
         return DrmFramebuffer::createFramebuffer(m_currentBuffer);
     } else {

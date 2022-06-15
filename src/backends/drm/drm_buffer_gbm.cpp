@@ -8,11 +8,15 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 #include "drm_buffer_gbm.h"
+#include "drm_gbm_swapchain.h"
 #include "gbm_surface.h"
 
 #include "config-kwin.h"
 #include "drm_gpu.h"
+#include "egl_gbm_backend.h"
+#include "kwineglimagetexture.h"
 #include "kwineglutils_p.h"
+#include "kwinglutils.h"
 #include "logging.h"
 #include "wayland/clientbuffer.h"
 #include "wayland/linuxdmabufv1clientbuffer.h"
@@ -74,6 +78,14 @@ GbmBuffer::GbmBuffer(DrmGpu *gpu, gbm_bo *bo, const std::shared_ptr<GbmSurface> 
 {
 }
 
+GbmBuffer::GbmBuffer(DrmGpu *gpu, gbm_bo *bo, const std::shared_ptr<GbmSwapchain> &swapchain)
+    : DrmGpuBuffer(gpu, QSize(gbm_bo_get_width(bo), gbm_bo_get_height(bo)), gbm_bo_get_format(bo), gbm_bo_get_modifier(bo), getHandles(bo), getStrides(bo), getOffsets(bo), gbm_bo_get_plane_count(bo))
+    , m_bo(bo)
+    , m_swapchain(swapchain)
+    , m_renderCounter(swapchain->renderCounter())
+{
+}
+
 GbmBuffer::GbmBuffer(DrmGpu *gpu, gbm_bo *bo)
     : DrmGpuBuffer(gpu, QSize(gbm_bo_get_width(bo), gbm_bo_get_height(bo)), gbm_bo_get_format(bo), gbm_bo_get_modifier(bo), getHandles(bo), getStrides(bo), getOffsets(bo), gbm_bo_get_plane_count(bo))
     , m_bo(bo)
@@ -88,18 +100,29 @@ GbmBuffer::GbmBuffer(DrmGpu *gpu, gbm_bo *bo, KWaylandServer::LinuxDmaBufV1Clien
     m_clientBuffer->ref();
 }
 
+GbmBuffer::GbmBuffer(GbmBuffer *buffer)
+    : DrmGpuBuffer(buffer->gpu(), buffer->size(), buffer->format(), buffer->modifier(), buffer->handles(), buffer->strides(), buffer->offsets(), buffer->planeCount())
+    , m_bo(buffer->bo())
+    , m_swapchain(buffer->m_swapchain)
+{
+}
+
 GbmBuffer::~GbmBuffer()
 {
-    if (m_clientBuffer) {
-        m_clientBuffer->unref();
-    }
-    if (m_mapping) {
-        gbm_bo_unmap(m_bo, m_mapping);
-    }
-    if (m_surface) {
-        m_surface->releaseBuffer(this);
+    if (const auto swapchain = m_swapchain.lock(); swapchain && swapchain->release(this)) {
+        // keep resources alive
     } else {
-        gbm_bo_destroy(m_bo);
+        if (m_clientBuffer) {
+            m_clientBuffer->unref();
+        }
+        if (m_mapping) {
+            gbm_bo_unmap(m_bo, m_mapping);
+        }
+        if (m_surface) {
+            m_surface->releaseBuffer(this);
+        } else {
+            gbm_bo_destroy(m_bo);
+        }
     }
 }
 
@@ -148,6 +171,53 @@ void GbmBuffer::createFds()
     }
     m_fds[0] = gbm_bo_get_fd(m_bo);
 #endif
+}
+
+static int glFormat(uint32_t drmFormat)
+{
+    if (drmFormat == DRM_FORMAT_XRGB8888 || drmFormat == DRM_FORMAT_ARGB8888) {
+        return GL_RGBA8;
+    } else if (drmFormat == DRM_FORMAT_XRGB2101010 || drmFormat == DRM_FORMAT_ARGB2101010) {
+        return GL_RGBA12;
+    } else {
+        qCWarning(KWIN_DRM) << "unexpected drm format?" << drmFormat;
+        return 0;
+    }
+}
+
+bool GbmBuffer::createFbo(EglGbmBackend *backend)
+{
+    if (!m_fbo) {
+        int oglFormat = glFormat(m_format);
+        if (!oglFormat) {
+            return false;
+        }
+        EGLImage image = backend->importDmaBufAsImage(m_bo);
+        if (!image) {
+            qCWarning(KWIN_DRM) << "Failed to import gbm buffer into EGL:" << getEglErrorString();
+            return false;
+        }
+        m_texture = std::make_unique<EGLImageTexture>(backend->eglDisplay(), image, oglFormat, m_size);
+        m_fbo = std::make_unique<GLFramebuffer>(m_texture.get());
+        return true;
+    } else {
+        return true;
+    }
+}
+
+GLFramebuffer *GbmBuffer::fbo() const
+{
+    return m_fbo.get();
+}
+
+uint32_t GbmBuffer::renderCounter() const
+{
+    return m_renderCounter;
+}
+
+void GbmBuffer::setRenderCounter(uint32_t counter)
+{
+    m_renderCounter = counter;
 }
 
 std::shared_ptr<GbmBuffer> GbmBuffer::importBuffer(DrmGpu *gpu, KWaylandServer::LinuxDmaBufV1ClientBuffer *clientBuffer)

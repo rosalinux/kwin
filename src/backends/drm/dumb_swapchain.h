@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "drm_surface.h"
 #include "utils/damagejournal.h"
 
 #include <QImage>
@@ -22,7 +23,7 @@ namespace KWin
 class DrmDumbBuffer;
 class DrmGpu;
 
-class DumbSwapchain
+class DumbSwapchain : public DrmSurface
 {
 public:
     DumbSwapchain(DrmGpu *gpu, const QSize &size, uint32_t drmFormat);
@@ -32,9 +33,7 @@ public:
     void releaseBuffer(const std::shared_ptr<DrmDumbBuffer> &buffer, const QRegion &damage = {});
 
     qsizetype slotCount() const;
-    QSize size() const;
     bool isEmpty() const;
-    uint32_t drmFormat() const;
 
 private:
     struct Slot
@@ -43,9 +42,7 @@ private:
         int age = 0;
     };
 
-    QSize m_size;
     int index = 0;
-    uint32_t m_format;
     QVector<Slot> m_slots;
     DamageJournal m_damageJournal;
 };
