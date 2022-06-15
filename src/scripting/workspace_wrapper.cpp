@@ -9,6 +9,7 @@
 */
 
 #include "workspace_wrapper.h"
+#include "customtiling.h"
 #include "outline.h"
 #include "output.h"
 #include "platform.h"
@@ -442,6 +443,15 @@ void WorkspaceWrapper::sendClientToScreen(Window *client, int screen)
     if (output) {
         workspace()->sendWindowToOutput(client, output);
     }
+}
+
+KWin::CustomTiling *WorkspaceWrapper::customTilingForScreen(const QString &screenName) const
+{
+    Output *output = kwinApp()->platform()->findOutput(screenName);
+    if (output) {
+        return output->customTiling();
+    }
+    return nullptr;
 }
 
 QtScriptWorkspaceWrapper::QtScriptWorkspaceWrapper(QObject *parent)

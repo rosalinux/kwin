@@ -27,6 +27,8 @@ class Output;
 class KWIN_EXPORT CustomTiling : public QObject
 {
     Q_OBJECT
+    //TODO: a model
+    Q_PROPERTY(QList<QRectF> tileGeometries READ tileGeometries CONSTANT)
 
 public:
     enum class LayoutDirection {

@@ -24,6 +24,7 @@
 #include "v3/clientmodel.h"
 #include "v3/virtualdesktopmodel.h"
 
+#include "customtiling.h"
 #include "input.h"
 #include "options.h"
 #include "screenedge.h"
@@ -672,10 +673,12 @@ void KWin::Scripting::init()
     qmlRegisterAnonymousType<KWin::VirtualDesktop>("org.kde.kwin", 2);
     qmlRegisterAnonymousType<KWin::X11Window>("org.kde.kwin", 2);
     qmlRegisterAnonymousType<QAbstractItemModel>("org.kde.kwin", 2);
+    qmlRegisterAnonymousType<KWin::CustomTiling>("org.kde.kwin", 2);
     qmlRegisterAnonymousType<KWin::Window>("org.kde.kwin", 3);
     qmlRegisterAnonymousType<KWin::VirtualDesktop>("org.kde.kwin", 3);
     qmlRegisterAnonymousType<KWin::X11Window>("org.kde.kwin", 3);
     qmlRegisterAnonymousType<QAbstractItemModel>("org.kde.kwin", 3);
+    qmlRegisterAnonymousType<KWin::CustomTiling>("org.kde.kwin", 3);
 
     // TODO Plasma 6: Drop context properties.
     m_qmlEngine->rootContext()->setContextProperty(QStringLiteral("workspace"), m_workspaceWrapper);

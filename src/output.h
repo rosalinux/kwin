@@ -57,6 +57,7 @@ private:
 class KWIN_EXPORT Output : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(CustomTiling *customTiling READ customTiling CONSTANT)
 
 public:
     enum class DpmsMode {
@@ -242,9 +243,7 @@ public:
     bool isPlaceholder() const;
     bool isNonDesktop() const;
 
-    CustomTiling *customTiling();
-
-    QList<QRectF> customTilingZones() const;
+    CustomTiling *customTiling() const;
 
     virtual void setColorTransformation(const std::shared_ptr<ColorTransformation> &transformation);
 

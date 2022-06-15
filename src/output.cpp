@@ -407,7 +407,7 @@ bool Output::isNonDesktop() const
     return m_information.nonDesktop;
 }
 
-CustomTiling *Output::customTiling()
+CustomTiling *Output::customTiling() const
 {
     return m_customTiling;
 }
