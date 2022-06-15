@@ -673,12 +673,12 @@ void KWin::Scripting::init()
     qmlRegisterAnonymousType<KWin::VirtualDesktop>("org.kde.kwin", 2);
     qmlRegisterAnonymousType<KWin::X11Window>("org.kde.kwin", 2);
     qmlRegisterAnonymousType<QAbstractItemModel>("org.kde.kwin", 2);
-    qmlRegisterAnonymousType<KWin::CustomTiling>("org.kde.kwin", 2);
     qmlRegisterAnonymousType<KWin::Window>("org.kde.kwin", 3);
     qmlRegisterAnonymousType<KWin::VirtualDesktop>("org.kde.kwin", 3);
     qmlRegisterAnonymousType<KWin::X11Window>("org.kde.kwin", 3);
     qmlRegisterAnonymousType<QAbstractItemModel>("org.kde.kwin", 3);
     qmlRegisterAnonymousType<KWin::CustomTiling>("org.kde.kwin", 3);
+    qmlRegisterUncreatableType<KWin::TileData>("org.kde.kwin", 3, 0, "TileData", QStringLiteral("Cannot create objects of type TileData"));
 
     // TODO Plasma 6: Drop context properties.
     m_qmlEngine->rootContext()->setContextProperty(QStringLiteral("workspace"), m_workspaceWrapper);

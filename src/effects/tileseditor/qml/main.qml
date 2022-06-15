@@ -13,6 +13,7 @@ import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.components 3.0 as PlasmaComponents
 import org.kde.plasma.extras 2.0 as PlasmaExtras
 import org.kde.KWin.Effect.WindowView 1.0
+import QtQml.Models 2.2
 
 FocusScope {
     id: root
@@ -52,13 +53,15 @@ FocusScope {
     }
 
     Repeater {
-        model: KWinComponents.Workspace.customTilingForScreen(targetScreen.name).tileGeometries
+        model: KWinComponents.Workspace.customTilingForScreen(targetScreen.name)
         Item {
-            x: modelData.x
-            y: modelData.y
-            z: 999
-            width: modelData.width
-            height: modelData.height
+            required property QtObject tileData
+            x: tileData.absoluteGeometry.x
+            y: tileData.absoluteGeometry.y
+            z: tileData.layoutDirection === KWinComponents.TileData.Floating ? 1000 : 999
+            width: tileData.absoluteGeometry.width
+            height: tileData.absoluteGeometry.height
+            visible: !tileData.isLayout
             Rectangle {
                 anchors {
                     fill: parent
@@ -72,6 +75,17 @@ FocusScope {
                     OpacityAnimator {
                         duration: effect.animationDuration
                         easing.type: Easing.OutCubic
+                    }
+                }
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    PlasmaComponents.Button {
+                        text: i18n("Split Horizontally")
+                        onClicked: tileData.split(0)
+                    }
+                    PlasmaComponents.Button {
+                        text: i18n("Delete")
+                        onClicked: tileData.remove()
                     }
                 }
             }

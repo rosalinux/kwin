@@ -63,7 +63,7 @@ OutputMode::Flags OutputMode::flags() const
 
 Output::Output(QObject *parent)
     : QObject(parent)
-    , m_customTiling(new CustomTiling(this))
+    , m_customTiling(new CustomTiling(this)) //TODO: instantiate it only when tiles are used to save memory?
 {
 }
 

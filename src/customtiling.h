@@ -11,6 +11,7 @@
 
 #include <kwin_export.h>
 
+#include <QAbstractListModel>
 #include <QObject>
 #include <QRectF>
 
@@ -20,15 +21,17 @@ namespace KWin
 {
 
 class Output;
+class TileData;
+class CustomTiling;
 
-/**
- * Custom tiling zones management per output.
- */
-class KWIN_EXPORT CustomTiling : public QObject
+// This data entry looks and behaves like a tree model node, even though will live on a flat QAbstractListModel to be represented by a single QML Repeater
+class KWIN_EXPORT TileData : public QObject
 {
     Q_OBJECT
-    //TODO: a model
-    Q_PROPERTY(QList<QRectF> tileGeometries READ tileGeometries CONSTANT)
+    Q_PROPERTY(QRectF relativeGeometry READ relativeGeometry NOTIFY relativeGeometryChanged)
+    Q_PROPERTY(QRectF absoluteGeometry READ absoluteGeometry NOTIFY absoluteGeometryChanged)
+    Q_PROPERTY(KWin::TileData::LayoutDirection layoutDirection READ layoutDirection CONSTANT)
+    Q_PROPERTY(bool isLayout READ isLayout NOTIFY isLayoutChanged)
 
 public:
     enum class LayoutDirection {
@@ -38,22 +41,87 @@ public:
     };
     Q_ENUM(LayoutDirection)
 
+    explicit TileData(CustomTiling *m_tiling, TileData *parentItem = nullptr);
+    ~TileData();
+
+    void setRelativeGeometry(const QRectF &geom);
+    QRectF relativeGeometry() const;
+    QRectF absoluteGeometry() const;
+
+    void setLayoutDirection(TileData::LayoutDirection dir);
+    TileData::LayoutDirection layoutDirection() const;
+
+    bool isLayout() const;
+
+    void appendChild(TileData *child);
+
+    Q_INVOKABLE void split(KWin::TileData::LayoutDirection layoutDirection);
+    Q_INVOKABLE void remove();
+
+    void print();
+    TileData *child(int row);
+    int childCount() const;
+    int row() const;
+    TileData *parentItem();
+
+    QVector<TileData *> descendants() const;
+
+Q_SIGNALS:
+    void relativeGeometryChanged(const QRectF &relativeGeometry);
+    void absoluteGeometryChanged();
+    void isLayoutChanged(bool isLayout);
+
+private:
+    QVector<TileData *> m_childItems;
+    TileData *m_parentItem;
+
+    CustomTiling *m_tiling;
+    QRectF m_relativeGeometry;
+    TileData::LayoutDirection m_layoutDirection;
+};
+
+/**
+ * Custom tiling zones management per output.
+ */
+class KWIN_EXPORT CustomTiling : public QAbstractListModel
+{
+    Q_OBJECT
+    //TODO: a model
+    Q_PROPERTY(QList<QRectF> tileGeometries READ tileGeometries CONSTANT)
+
+public:
+    enum Roles {
+        TileDataRole = Qt::UserRole + 1
+    };
     explicit CustomTiling(Output *parent = nullptr);
     ~CustomTiling() override;
 
+    Output *output() const;
+
     QList<QRectF> tileGeometries() const;
+
+    // QAbstractListModel overrides
+    QHash<int, QByteArray> roleNames() const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
 
 Q_SIGNALS:
     void tileGeometriesChanged();
 
 private:
+    TileData *addTile(const QRectF &relativeGeometry, TileData::LayoutDirection layoutDirection, TileData *parentTile);
+    void removeTile(TileData *tile);
+
     void readSettings();
-    QRectF parseTilingJSon(const QJsonValue &val, CustomTiling::LayoutDirection layoutDirection, const QRectF &availableArea);
+    QRectF parseTilingJSon(const QJsonValue &val, TileData::LayoutDirection layoutDirection, const QRectF &availableArea, TileData *tile);
 
     Q_DISABLE_COPY(CustomTiling)
 
     Output *m_output = nullptr;
     QList<QRectF> m_tiles;
+    QVector<TileData *> m_tileData;
+    friend class TileData;
 };
 
 } // namespace KWin
