@@ -11,7 +11,7 @@
 
 #include <kwin_export.h>
 
-#include <QAbstractListModel>
+#include <QAbstractItemModel>
 #include <QObject>
 #include <QRectF>
 
@@ -24,7 +24,7 @@ class Output;
 class TileData;
 class CustomTiling;
 
-// This data entry looks and behaves like a tree model node, even though will live on a flat QAbstractListModel to be represented by a single QML Repeater
+// This data entry looks and behaves like a tree model node, even though will live on a flat QAbstractItemModel to be represented by a single QML Repeater
 class KWIN_EXPORT TileData : public QObject
 {
     Q_OBJECT
@@ -54,6 +54,7 @@ public:
     bool isLayout() const;
 
     void appendChild(TileData *child);
+    void removeChild(TileData *child);
 
     Q_INVOKABLE void split(KWin::TileData::LayoutDirection layoutDirection);
     Q_INVOKABLE void remove();
@@ -83,7 +84,7 @@ private:
 /**
  * Custom tiling zones management per output.
  */
-class KWIN_EXPORT CustomTiling : public QAbstractListModel
+class KWIN_EXPORT CustomTiling : public QAbstractItemModel
 {
     Q_OBJECT
     //TODO: a model
@@ -100,11 +101,15 @@ public:
 
     QList<QRectF> tileGeometries() const;
 
-    // QAbstractListModel overrides
+    // QAbstractItemModel overrides
     QHash<int, QByteArray> roleNames() const override;
     QVariant data(const QModelIndex &index, int role) const override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
+    QModelIndex index(int row, int column,
+                      const QModelIndex &parent = QModelIndex()) const override;
+    QModelIndex parent(const QModelIndex &index) const override;
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
 
 Q_SIGNALS:
     void tileGeometriesChanged();
@@ -120,7 +125,7 @@ private:
 
     Output *m_output = nullptr;
     QList<QRectF> m_tiles;
-    QVector<TileData *> m_tileData;
+    TileData *m_rootTile;
     friend class TileData;
 };
 

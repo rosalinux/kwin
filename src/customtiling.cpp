@@ -35,8 +35,11 @@ TileData::TileData(CustomTiling *tiling, TileData *parent)
 
 TileData::~TileData()
 {
-    qDeleteAll(m_childItems);
+    if (m_parentItem) {
+        m_parentItem->removeChild(this);
+    }
 }
+
 void TileData::print()
 {
     qWarning() << m_relativeGeometry << m_layoutDirection;
@@ -44,6 +47,7 @@ void TileData::print()
         t->print();
     }
 }
+
 void TileData::setRelativeGeometry(const QRectF &geom)
 {
     if (m_relativeGeometry == geom) {
@@ -86,13 +90,42 @@ bool TileData::isLayout() const
 
 void TileData::split(KWin::TileData::LayoutDirection layoutDirection)
 {
-    // TODO: manage layoutDirection change
-    m_relativeGeometry.setWidth(m_relativeGeometry.width() / 2);
-    auto newGeo = m_relativeGeometry;
-    newGeo.moveLeft(newGeo.x() + newGeo.width());
-    Q_EMIT relativeGeometryChanged(m_relativeGeometry);
-    Q_EMIT absoluteGeometryChanged();
-    m_tiling->addTile(newGeo, m_layoutDirection, m_parentItem);
+    //TODO: support floating
+    if (layoutDirection == LayoutDirection::Floating) {
+        return;
+    }
+
+    if (m_layoutDirection == layoutDirection) {
+        // Add a new cell to the current layout
+        QRectF newGeo;
+        if (layoutDirection == LayoutDirection::Horizontal) {
+            m_relativeGeometry.setWidth(m_relativeGeometry.width() / 2);
+            newGeo = m_relativeGeometry;
+            newGeo.moveLeft(newGeo.x() + newGeo.width());
+        } else if (layoutDirection == LayoutDirection::Vertical) {
+            m_relativeGeometry.setHeight(m_relativeGeometry.height() / 2);
+            newGeo = m_relativeGeometry;
+            newGeo.moveTop(newGeo.y() + newGeo.height());
+        }
+
+        Q_EMIT relativeGeometryChanged(m_relativeGeometry);
+        Q_EMIT absoluteGeometryChanged();
+        m_tiling->addTile(newGeo, m_layoutDirection, m_parentItem);
+    } else {
+        // Do a new layout with 2 cells inside this one
+        auto newGeo = m_relativeGeometry;
+        if (layoutDirection == LayoutDirection::Horizontal) {
+            newGeo.setWidth(m_relativeGeometry.width() / 2);
+            m_tiling->addTile(newGeo, layoutDirection, this);
+            newGeo.moveLeft(newGeo.x() + newGeo.width());
+            m_tiling->addTile(newGeo, layoutDirection, this);
+        } else if (layoutDirection == LayoutDirection::Vertical) {
+            newGeo.setHeight(m_relativeGeometry.height() / 2);
+            m_tiling->addTile(newGeo, layoutDirection, this);
+            newGeo.moveTop(newGeo.y() + newGeo.height());
+            m_tiling->addTile(newGeo, layoutDirection, this);
+        }
+    }
 }
 
 void TileData::remove()
@@ -115,6 +148,11 @@ void TileData::appendChild(TileData *item)
     if (wasEmpty) {
         Q_EMIT isLayoutChanged(true);
     }
+}
+
+void TileData::removeChild(TileData *child)
+{
+    m_childItems.removeAll(this);
 }
 
 TileData *TileData::child(int row)
@@ -152,12 +190,11 @@ int TileData::row() const
 }
 
 CustomTiling::CustomTiling(Output *parent)
-    : QAbstractListModel(parent)
+    : QAbstractItemModel(parent)
     , m_output(parent)
 {
-    TileData *tile = new TileData(this, nullptr);
-    tile->setRelativeGeometry(QRectF(0, 0, 1, 1));
-    m_tileData << tile;
+    m_rootTile = new TileData(this, nullptr);
+    m_rootTile->setRelativeGeometry(QRectF(0, 0, 1, 1));
     connect(Workspace::self(), &Workspace::configChanged, this, &CustomTiling::readSettings);
     connect(m_output, &Output::informationChanged, this, &CustomTiling::readSettings);
 }
@@ -197,11 +234,9 @@ QVariant CustomTiling::data(const QModelIndex &index, int role) const
         return QVariant();
     }
 
-    const int row = index.row();
-    if (row < 0 || row >= m_tileData.count()) {
+    if (role == TileDataRole) {
+        return QVariant::fromValue(static_cast<TileData *>(index.internalPointer()));
     }
-    // TODO: roles
-    return QVariant::fromValue(m_tileData[row]);
 
     return QVariant();
 }
@@ -212,12 +247,65 @@ Qt::ItemFlags CustomTiling::flags(const QModelIndex &index) const
         return Qt::NoItemFlags;
     }
 
-    return QAbstractListModel::flags(index);
+    return QAbstractItemModel::flags(index);
+}
+
+QModelIndex CustomTiling::index(int row, int column, const QModelIndex &parent) const
+{
+    if (!hasIndex(row, column, parent)) {
+        return QModelIndex();
+    }
+
+    TileData *parentItem;
+
+    if (!parent.isValid()) {
+        parentItem = m_rootTile;
+    } else {
+        parentItem = static_cast<TileData *>(parent.internalPointer());
+    }
+
+    TileData *childItem = parentItem->child(row);
+    if (childItem) {
+        return createIndex(row, column, childItem);
+    }
+    return QModelIndex();
+}
+
+QModelIndex CustomTiling::parent(const QModelIndex &index) const
+{
+    if (!index.isValid()) {
+        return QModelIndex();
+    }
+
+    TileData *childItem = static_cast<TileData *>(index.internalPointer());
+    TileData *parentItem = childItem->parentItem();
+
+    if (parentItem == m_rootTile) {
+        return QModelIndex();
+    }
+
+    return createIndex(parentItem->row(), 0, parentItem);
 }
 
 int CustomTiling::rowCount(const QModelIndex &parent) const
 {
-    return m_tileData.count();
+    TileData *parentItem;
+    if (parent.column() > 0) {
+        return 0;
+    }
+
+    if (!parent.isValid()) {
+        parentItem = m_rootTile;
+    } else {
+        parentItem = static_cast<TileData *>(parent.internalPointer());
+    }
+
+    return parentItem->childCount();
+}
+
+int CustomTiling::columnCount(const QModelIndex &parent) const
+{
+    return 1;
 }
 
 TileData::LayoutDirection strToLayoutDirection(const QString &dir)
@@ -327,26 +415,36 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
 
 TileData *CustomTiling::addTile(const QRectF &relativeGeometry, TileData::LayoutDirection layoutDirection, TileData *parentTile)
 {
-    beginInsertRows(QModelIndex(), m_tileData.count(), m_tileData.count());
+    auto index = createIndex(parentTile->row(), 0, parentTile);
+    beginInsertRows(index, parentTile->childCount(), parentTile->childCount());
     TileData *tile = new TileData(this, parentTile);
     tile->setRelativeGeometry(relativeGeometry);
     tile->setLayoutDirection(layoutDirection);
     parentTile->appendChild(tile);
-    m_tileData << tile;
     endInsertRows();
     return tile;
 }
 
 void CustomTiling::removeTile(TileData *tile)
 {
-    Q_ASSERT(m_tileData.contains(tile));
+    // Can't delete the root tile
+    const auto parentTile = tile->parentItem();
+    if (!parentTile) {
+        qCWarning(KWIN_CORE) << "Can't remove the root tile";
+        return;
+    }
 
-    const auto allTiles = tile->descendants();
-    const int from = m_tileData.indexOf(tile);
-    beginRemoveRows(QModelIndex(), from, from + allTiles.count());
-    m_tileData.remove(from, allTiles.count() + 1);
+    auto index = createIndex(parentTile->row(), 0, parentTile);
+    beginRemoveRows(index, tile->row(), tile->row());
+    parentTile->removeChild(tile);
     endRemoveRows();
-    tile->deleteLater(); // This will delete all the children as well
+    tile->deleteLater(); // This will delete all the tile children as well
+    if (parentTile->childCount() == 1) {
+        auto *lastTile = parentTile->child(0);
+        if (lastTile->childCount() == 0) {
+            removeTile(lastTile);
+        }
+    }
 }
 
 void CustomTiling::readSettings()
@@ -364,8 +462,8 @@ void CustomTiling::readSettings()
         return;
     }
 
-    parseTilingJSon(doc.object(), TileData::LayoutDirection::Floating, QRectF(0, 0, 1, 1), m_tileData.first());
-    m_tileData.first()->print();
+    parseTilingJSon(doc.object(), TileData::LayoutDirection::Floating, QRectF(0, 0, 1, 1), m_rootTile);
+    m_rootTile->print();
     Q_EMIT tileGeometriesChanged();
 }
 
