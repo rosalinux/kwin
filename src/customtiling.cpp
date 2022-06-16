@@ -42,10 +42,17 @@ TileData::~TileData()
 
 void TileData::print()
 {
-    qWarning() << m_relativeGeometry << m_layoutDirection;
+    static int level = 0;
+    level++;
+    QString spaces;
+    for (int i = 0; i < level; ++i) {
+        spaces += "  ";
+    }
+    qWarning() << spaces << m_relativeGeometry << m_layoutDirection;
     for (auto t : m_childItems) {
         t->print();
     }
+    level--;
 }
 
 void TileData::setRelativeGeometry(const QRectF &geom)
@@ -183,8 +190,9 @@ TileData *TileData::parentItem()
 
 int TileData::row() const
 {
-    if (m_parentItem)
+    if (m_parentItem) {
         return m_parentItem->m_childItems.indexOf(const_cast<TileData *>(this));
+    }
 
     return 0;
 }
@@ -330,6 +338,7 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
     if (val.isObject()) {
         const auto &obj = val.toObject();
         if (obj.contains(QStringLiteral("tiles")) || obj.contains(QStringLiteral("floatingTiles"))) {
+            // if (arr.count() > 1 && layoutDirection != TileData::LayoutDirection::Floating) {
             if (obj.contains(QStringLiteral("floatingTiles"))) {
                 // Are there floating tiles?
                 const auto arr = obj.value(QStringLiteral("floatingTiles"));
@@ -343,22 +352,24 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                 const auto direction = obj.value(QStringLiteral("layoutDirection"));
                 if (arr.isArray() && direction.isString()) {
                     const TileData::LayoutDirection dir = strToLayoutDirection(direction.toString());
-                    parentTile->setLayoutDirection(dir);
+
                     auto avail = availableArea;
                     if (dir == TileData::LayoutDirection::Horizontal) {
                         const auto height = obj.value(QStringLiteral("height"));
-                        if (height.isDouble()) {
+                        if (height.isDouble() && height.toDouble() > 0) {
                             avail.setHeight(height.toDouble());
                         }
-                        parseTilingJSon(arr, dir, avail, parentTile);
+                        TileData *tile = addTile(avail, dir, parentTile);
+                        parseTilingJSon(arr, dir, avail, tile);
                         ret.setTop(avail.bottom());
                         return ret;
                     } else if (dir == TileData::LayoutDirection::Vertical) {
                         const auto width = obj.value(QStringLiteral("width"));
-                        if (width.isDouble()) {
+                        if (width.isDouble() && width.toDouble() > 0) {
                             avail.setWidth(width.toDouble());
                         }
-                        parseTilingJSon(arr, dir, avail, parentTile);
+                        TileData *tile = addTile(avail, dir, parentTile);
+                        parseTilingJSon(arr, dir, avail, tile);
                         ret.setLeft(avail.right());
                         return ret;
                     }
@@ -404,8 +415,7 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
         auto avail = availableArea;
         for (auto it = arr.cbegin(); it != arr.cend(); it++) {
             if ((*it).isObject()) {
-                TileData *tile = addTile(avail, layoutDirection, parentTile);
-                avail = parseTilingJSon(*it, layoutDirection, avail, tile);
+                avail = parseTilingJSon(*it, layoutDirection, avail, parentTile);
             }
         }
         return avail;
@@ -433,13 +443,15 @@ void CustomTiling::removeTile(TileData *tile)
         qCWarning(KWIN_CORE) << "Can't remove the root tile";
         return;
     }
-
+    qWarning() << "GEOMS" << tile << tile->relativeGeometry() << parentTile << parentTile->relativeGeometry() << m_rootTile;
     auto index = createIndex(parentTile->row(), 0, parentTile);
+    qWarning() << "INDEX" << index << parentTile->row() << tile->row();
     beginRemoveRows(index, tile->row(), tile->row());
     parentTile->removeChild(tile);
     endRemoveRows();
     tile->deleteLater(); // This will delete all the tile children as well
     if (parentTile->childCount() == 1) {
+        qWarning() << "POH?";
         auto *lastTile = parentTile->child(0);
         if (lastTile->childCount() == 0) {
             removeTile(lastTile);
