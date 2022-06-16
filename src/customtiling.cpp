@@ -159,7 +159,7 @@ void TileData::appendChild(TileData *item)
 
 void TileData::removeChild(TileData *child)
 {
-    m_childItems.removeAll(this);
+    m_childItems.removeAll(child);
 }
 
 TileData *TileData::child(int row)
@@ -443,15 +443,13 @@ void CustomTiling::removeTile(TileData *tile)
         qCWarning(KWIN_CORE) << "Can't remove the root tile";
         return;
     }
-    qWarning() << "GEOMS" << tile << tile->relativeGeometry() << parentTile << parentTile->relativeGeometry() << m_rootTile;
+
     auto index = createIndex(parentTile->row(), 0, parentTile);
-    qWarning() << "INDEX" << index << parentTile->row() << tile->row();
     beginRemoveRows(index, tile->row(), tile->row());
     parentTile->removeChild(tile);
     endRemoveRows();
     tile->deleteLater(); // This will delete all the tile children as well
     if (parentTile->childCount() == 1) {
-        qWarning() << "POH?";
         auto *lastTile = parentTile->child(0);
         if (lastTile->childCount() == 0) {
             removeTile(lastTile);
