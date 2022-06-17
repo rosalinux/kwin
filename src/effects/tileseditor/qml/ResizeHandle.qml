@@ -19,18 +19,19 @@ Rectangle {
     id: handle
 
     required property QtObject tileData
-    property Qt.Edge edge
-    readonly property Qt.Orientation orientation: edge == Qt.LeftEdge || edge == Qt.RightEdge
+    property int edge
+    readonly property int orientation: edge == Qt.LeftEdge || edge == Qt.RightEdge
     readonly property bool valid: tileData.layoutDirection == KWinComponents.TileData.Floating || (orientation == Qt.Horizontal && tileData.layoutDirection != KWinComponents.TileData.Horizontal)
         || (orientation == Qt.Vertical && tileData.layoutDirection != KWinComponents.TileData.Vertical)
 
     z: 2
 
-    implicitWidth: PlasmaCore.Units.gridUnit
-    implicitHeight: PlasmaCore.Units.gridUnit
+    implicitWidth: PlasmaCore.Units.smallSpacing * 2
+    implicitHeight: PlasmaCore.Units.smallSpacing * 2
 
     radius: 3
-    opacity: hoverHandler.hovered ? 0.4 : 0
+    color: PlasmaCore.Theme.highlightColor
+    opacity: hoverHandler.hovered || dragHandler.active ? 0.4 : 0
 
     HoverHandler {
         id: hoverHandler
@@ -38,6 +39,7 @@ Rectangle {
     }
 
     DragHandler {
+        id: dragHandler
         target: null
         property point oldPoint: Qt.point(0, 0)
         property point dragPoint: centroid.scenePosition
@@ -50,8 +52,11 @@ Rectangle {
             if (!active) {
                 return;
             }
-            print(oldPoint.x - dragPoint.x);
-            tileData.resizeInLayout(dragPoint.x - oldPoint.x);
+            if (handle.orientation == Qt.Horizontal) {
+                tileData.resizeInLayout(dragPoint.x - oldPoint.x);
+            } else {
+                tileData.resizeInLayout(dragPoint.y - oldPoint.y);
+            }
             oldPoint = dragPoint;
         }
     }

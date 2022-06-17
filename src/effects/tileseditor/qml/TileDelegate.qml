@@ -16,45 +16,32 @@ import org.kde.KWin.Effect.WindowView 1.0
 import org.kde.kitemmodels 1.0 as KitemModels
 
 Item {
+    id: delegate
     required property QtObject tileData
-    x: tileData.absoluteGeometry.x
-    y: tileData.absoluteGeometry.y
+    x: Math.round(tileData.absoluteGeometry.x)
+    y: Math.round(tileData.absoluteGeometry.y)
     z: tileData.layoutDirection === KWinComponents.TileData.Floating ? 1 : 0
-    width: tileData.absoluteGeometry.width
-    height: tileData.absoluteGeometry.height
-    Rectangle {
+    width: Math.round(tileData.absoluteGeometry.width)
+    height: Math.round(tileData.absoluteGeometry.height)
+    ResizeHandle {
         anchors {
             horizontalCenter: parent.left
             top: parent.top
             bottom: parent.bottom
         }
-        z: 2
-        width: PlasmaCore.Units.gridUnit
-        radius: 3
-        opacity: hoverHandler.hovered
-        HoverHandler {
-            id: hoverHandler
-            cursorShape: Qt.SizeHorCursor
-        }
-        DragHandler {
-            target: null
-            property point oldPoint: Qt.point(0, 0)
-            property point dragPoint: centroid.scenePosition
-            onActiveChanged: {
-                if (active) {
-                    oldPoint = dragPoint;
-                }
-            }
-            onDragPointChanged: {
-                if (!active) {
-                    return;
-                }
-                print(oldPoint.x - dragPoint.x);
-                tileData.resizeInLayout(dragPoint.x - oldPoint.x);
-                oldPoint = dragPoint;
-            }
-        }
+        tileData: delegate.tileData
+        edge: Qt.LeftEdge
     }
+    ResizeHandle {
+        anchors {
+            verticalCenter: parent.top
+            left: parent.left
+            right: parent.right
+        }
+        tileData: delegate.tileData
+        edge: Qt.TopEdge
+    }
+
     Item {
         anchors.fill: parent
         visible: !tileData.isLayout
@@ -74,19 +61,19 @@ Item {
                 Layout.fillWidth: true
                 icon.name: "view-split-left-right"
                 text: i18n("Split Horizontally")
-                onClicked: tileData.split(KWinComponents.TileData.Horizontal)
+                onReleased: tileData.split(KWinComponents.TileData.Horizontal)
             }
             PlasmaComponents.Button {
                 Layout.fillWidth: true
                 icon.name: "view-split-top-bottom"
                 text: i18n("Split Vertically")
-                onClicked: tileData.split(KWinComponents.TileData.Vertical)
+                onReleased: tileData.split(KWinComponents.TileData.Vertical)
             }
             PlasmaComponents.Button {
                 Layout.fillWidth: true
                 icon.name: "edit-delete"
                 text: i18n("Delete")
-                onClicked: tileData.remove()
+                onReleased: tileData.remove()
             }
         }
     }

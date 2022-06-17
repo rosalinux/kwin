@@ -3923,6 +3923,15 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
         }
         checkWorkspacePosition(); // Just in case it's a different screen
     }
+
+    if (mode == QuickTileMode(QuickTileFlag::CustomZone)) {
+        connect(output()->customTiling(), &CustomTiling::tileGeometriesChanged, this, [this] {
+            moveResize(quickTileGeometry(QuickTileFlag::CustomZone, pos() + rect().center()));
+        });
+    } else {
+        disconnect(output()->customTiling(), nullptr, this, nullptr);
+    }
+
     doSetQuickTileMode();
     Q_EMIT quickTileModeChanged();
 }
@@ -3946,6 +3955,11 @@ void Window::sendToOutput(Output *newOutput)
     }
     if (output() == newOutput) { // Don't use isOnScreen(), that's true even when only partially
         return;
+    }
+
+    // TODO: remove the quick tile mode?
+    if (m_quickTileMode == QuickTileMode(QuickTileFlag::CustomZone)) {
+        disconnect(output()->customTiling(), nullptr, this, nullptr);
     }
 
     GeometryUpdatesBlocker blocker(this);

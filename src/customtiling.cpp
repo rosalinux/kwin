@@ -74,6 +74,7 @@ void TileData::setRelativeGeometry(const QRectF &geom)
     }
     Q_EMIT relativeGeometryChanged(geom);
     Q_EMIT absoluteGeometryChanged();
+    Q_EMIT m_tiling->tileGeometriesChanged();
 }
 
 QRectF TileData::relativeGeometry() const
@@ -129,9 +130,9 @@ void TileData::resizeInLayout(qreal delta)
     } else {
         qreal relativeDelta = delta / areaGeom.height();
         geom.setTop(geom.top() + relativeDelta);
-        otherGeom.setTop(otherGeom.top() + relativeDelta);
+        otherGeom.setBottom(otherGeom.bottom() + relativeDelta);
     }
-    qWarning() << "ADJUSTING:" << m_relativeGeometry << geom;
+
     setRelativeGeometry(geom);
     m_parentItem->m_childItems[index - 1]->setRelativeGeometry(otherGeom);
 }
@@ -142,7 +143,7 @@ void TileData::split(KWin::TileData::LayoutDirection layoutDirection)
     if (layoutDirection == LayoutDirection::Floating) {
         return;
     }
-
+    qWarning() << "SPLITTING";
     if (m_layoutDirection == layoutDirection) {
         // Add a new cell to the current layout
         QRectF newGeo;
@@ -158,6 +159,7 @@ void TileData::split(KWin::TileData::LayoutDirection layoutDirection)
 
         Q_EMIT relativeGeometryChanged(m_relativeGeometry);
         Q_EMIT absoluteGeometryChanged();
+        Q_EMIT m_tiling->tileGeometriesChanged();
         m_tiling->addTile(newGeo, m_layoutDirection, m_parentItem);
     } else {
         // Do a new layout with 2 cells inside this one
@@ -200,7 +202,11 @@ void TileData::appendChild(TileData *item)
 
 void TileData::removeChild(TileData *child)
 {
+    const bool wasEmpty = !m_childItems.isEmpty();
     m_childItems.removeAll(child);
+    if (m_childItems.isEmpty() && !wasEmpty) {
+        Q_EMIT isLayoutChanged(false);
+    }
 }
 
 TileData *TileData::child(int row)
@@ -267,11 +273,13 @@ QList<QRectF> CustomTiling::tileGeometries() const
 {
     QList<QRectF> geometries;
     const QRect geom = workspace()->clientArea(MaximizeArea, m_output, VirtualDesktopManager::self()->currentDesktop());
-    for (const auto &r : m_tiles) {
-        geometries << QRectF(geom.x() + r.x() * geom.width(),
-                             geom.y() + r.y() * geom.height(),
-                             r.width() * geom.width(),
-                             r.height() * geom.height());
+    const auto tiles = m_rootTile->descendants();
+
+    //TODO: can be costly: optimize?
+    for (const auto *t : tiles) {
+        if (!t->isLayout()) {
+            geometries << t->absoluteGeometry();
+        }
     }
 
     return geometries;
