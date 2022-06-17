@@ -62,6 +62,16 @@ void TileData::setRelativeGeometry(const QRectF &geom)
     }
 
     m_relativeGeometry = geom;
+    for (auto t : m_childItems) {
+        auto childGeom = t->relativeGeometry();
+        childGeom = childGeom.intersected(geom);
+        if (m_layoutDirection == LayoutDirection::Horizontal) {
+            childGeom.setHeight(geom.height());
+        } else if (m_layoutDirection == LayoutDirection::Vertical) {
+            childGeom.setWidth(geom.width());
+        }
+        t->setRelativeGeometry(childGeom);
+    }
     Q_EMIT relativeGeometryChanged(geom);
     Q_EMIT absoluteGeometryChanged();
 }
@@ -93,6 +103,37 @@ TileData::LayoutDirection TileData::layoutDirection() const
 bool TileData::isLayout() const
 {
     return !m_childItems.isEmpty();
+}
+
+void TileData::resizeInLayout(qreal delta)
+{
+    if (!m_parentItem || m_layoutDirection == LayoutDirection::Floating) {
+        return;
+    }
+
+    int index = row();
+
+    if (index < 1) {
+        return;
+    }
+
+    const QRect areaGeom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
+
+    auto geom = m_relativeGeometry;
+    auto otherGeom = m_parentItem->m_childItems[index - 1]->relativeGeometry();
+
+    if (m_layoutDirection == LayoutDirection::Horizontal) {
+        qreal relativeDelta = delta / areaGeom.width();
+        geom.setLeft(geom.left() + relativeDelta);
+        otherGeom.setRight(otherGeom.right() + relativeDelta);
+    } else {
+        qreal relativeDelta = delta / areaGeom.height();
+        geom.setTop(geom.top() + relativeDelta);
+        otherGeom.setTop(otherGeom.top() + relativeDelta);
+    }
+    qWarning() << "ADJUSTING:" << m_relativeGeometry << geom;
+    setRelativeGeometry(geom);
+    m_parentItem->m_childItems[index - 1]->setRelativeGeometry(otherGeom);
 }
 
 void TileData::split(KWin::TileData::LayoutDirection layoutDirection)

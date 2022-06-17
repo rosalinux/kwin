@@ -56,6 +56,7 @@ public:
     void appendChild(TileData *child);
     void removeChild(TileData *child);
 
+    Q_INVOKABLE void resizeInLayout(qreal delta);
     Q_INVOKABLE void split(KWin::TileData::LayoutDirection layoutDirection);
     Q_INVOKABLE void remove();
 
