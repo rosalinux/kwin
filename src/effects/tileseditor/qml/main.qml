@@ -52,15 +52,16 @@ FocusScope {
         }
     }
 
-    //Item {
-        //anchors.fill: parent
-        ////opacity: root.active ? 1 : 0
-        //Behavior on opacity {
-            //OpacityAnimator {
-                //duration: effect.animationDuration
-                //easing.type: Easing.OutCubic
-            //}
-        //}
+    Item {
+        anchors.fill: parent
+        opacity: root.active ? 1 : 0
+        z: 999
+        Behavior on opacity {
+            OpacityAnimator {
+                duration: effect.animationDuration
+                easing.type: Easing.OutCubic
+            }
+        }
 
         Repeater {
             model: KitemModels.KDescendantsProxyModel {
@@ -70,7 +71,7 @@ FocusScope {
                 required property QtObject tileData
                 x: tileData.absoluteGeometry.x
                 y: tileData.absoluteGeometry.y
-                z: tileData.layoutDirection === KWinComponents.TileData.Floating ? 1000 : 999
+                z: tileData.layoutDirection === KWinComponents.TileData.Floating ? 1 : 0
                 width: tileData.absoluteGeometry.width
                 height: tileData.absoluteGeometry.height
                 Rectangle {
@@ -143,5 +144,5 @@ FocusScope {
                 }
             }
         }
-   // }
+    }
 }
