@@ -19,6 +19,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimer>
 
 namespace KWin
 {
@@ -248,6 +249,12 @@ CustomTiling::CustomTiling(Output *parent)
     : QAbstractItemModel(parent)
     , m_output(parent)
 {
+    m_saveTimer = new QTimer(this);
+    m_saveTimer->setSingleShot(true);
+    m_saveTimer->setInterval(2000);
+    connect(this, &CustomTiling::tileGeometriesChanged, m_saveTimer, static_cast<void (QTimer::*)()>(&QTimer::start));
+    connect(m_saveTimer, &QTimer::timeout, this, &CustomTiling::saveSettings);
+
     m_rootTile = new TileData(this, nullptr);
     m_rootTile->setRelativeGeometry(QRectF(0, 0, 1, 1));
     connect(Workspace::self(), &Workspace::configChanged, this, &CustomTiling::readSettings);
@@ -431,7 +438,6 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                 rect.setWidth(qMin(width.toDouble(), availableArea.width()));
             }
             if (!rect.isEmpty()) {
-                m_tiles << rect;
                 addTile(rect, layoutDirection, parentTile);
             }
             ret.setLeft(ret.left() + rect.width());
@@ -443,7 +449,6 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                 rect.setHeight(qMin(height.toDouble(), availableArea.height()));
             }
             if (!rect.isEmpty()) {
-                m_tiles << rect;
                 addTile(rect, layoutDirection, parentTile);
             }
             ret.setTop(ret.top() + rect.height());
@@ -454,7 +459,6 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                         obj.value(QStringLiteral("width")).toDouble(),
                         obj.value(QStringLiteral("height")).toDouble());
             if (!rect.isEmpty()) {
-                m_tiles << rect;
                 addTile(rect, layoutDirection, parentTile);
             }
             return availableArea;
@@ -469,7 +473,7 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
         }
         return avail;
     }
-    return ret;
+    return availableArea;
 }
 
 TileData *CustomTiling::addTile(const QRectF &relativeGeometry, TileData::LayoutDirection layoutDirection, TileData *parentTile)
@@ -508,8 +512,6 @@ void CustomTiling::removeTile(TileData *tile)
 
 void CustomTiling::readSettings()
 {
-    m_tiles.clear();
-
     KConfigGroup cg = kwinApp()->config()->group(QStringLiteral("Tiling"));
     cg = KConfigGroup(&cg, m_output->uuid().toString(QUuid::WithoutBraces));
 
@@ -524,6 +526,50 @@ void CustomTiling::readSettings()
     parseTilingJSon(doc.object(), TileData::LayoutDirection::Floating, QRectF(0, 0, 1, 1), m_rootTile);
     m_rootTile->print();
     Q_EMIT tileGeometriesChanged();
+}
+
+QJsonObject CustomTiling::tileToJSon(TileData *parentTile)
+{
+    QJsonObject obj;
+
+    switch (parentTile->layoutDirection()) {
+    case TileData::LayoutDirection::Horizontal:
+        obj[QStringLiteral("layoutDirection")] = QStringLiteral("horizontal");
+        obj[QStringLiteral("width")] = parentTile->relativeGeometry().width();
+        break;
+    case TileData::LayoutDirection::Vertical:
+        obj[QStringLiteral("layoutDirection")] = QStringLiteral("vertical");
+        obj[QStringLiteral("height")] = parentTile->relativeGeometry().height();
+        break;
+    case TileData::LayoutDirection::Floating:
+    default:
+        obj[QStringLiteral("layoutDirection")] = QStringLiteral("floating");
+        obj[QStringLiteral("x")] = parentTile->relativeGeometry().x();
+        obj[QStringLiteral("y")] = parentTile->relativeGeometry().y();
+        obj[QStringLiteral("width")] = parentTile->relativeGeometry().width();
+        obj[QStringLiteral("height")] = parentTile->relativeGeometry().height();
+    }
+
+    const int nChildren = parentTile->childCount();
+    if (nChildren > 0) {
+        QJsonArray arr;
+        for (int i = 0; i < nChildren; ++i) {
+            arr.append(tileToJSon(parentTile->child(i)));
+        }
+        obj[QStringLiteral("tiles")] = arr;
+    }
+
+    return obj;
+}
+
+void CustomTiling::saveSettings()
+{
+    if (!m_rootTile) {
+        return;
+    }
+
+    auto obj = tileToJSon(m_rootTile);
+    qWarning() << obj;
 }
 
 } // namespace KWin

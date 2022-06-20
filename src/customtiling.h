@@ -17,6 +17,8 @@
 
 #include <QJsonValue>
 
+class QTimer;
+
 namespace KWin
 {
 
@@ -120,12 +122,14 @@ private:
     void removeTile(TileData *tile);
 
     void readSettings();
-    QRectF parseTilingJSon(const QJsonValue &val, TileData::LayoutDirection layoutDirection, const QRectF &availableArea, TileData *tile);
+    void saveSettings();
+    QJsonObject tileToJSon(TileData *parentTile);
+    QRectF parseTilingJSon(const QJsonValue &val, TileData::LayoutDirection layoutDirection, const QRectF &availableArea, TileData *parentTile);
 
     Q_DISABLE_COPY(CustomTiling)
 
     Output *m_output = nullptr;
-    QList<QRectF> m_tiles;
+    QTimer *m_saveTimer = nullptr;
     TileData *m_rootTile;
     friend class TileData;
 };
