@@ -130,7 +130,8 @@ private:
 
     Output *m_output = nullptr;
     QTimer *m_saveTimer = nullptr;
-    TileData *m_rootTile;
+    TileData *m_rootTile = nullptr;
+    TileData *m_rootFloatingTile = nullptr;
     friend class TileData;
 };
 
