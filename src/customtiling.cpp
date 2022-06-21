@@ -344,7 +344,7 @@ QModelIndex CustomTiling::parent(const QModelIndex &index) const
     TileData *childItem = static_cast<TileData *>(index.internalPointer());
     TileData *parentItem = childItem->parentItem();
 
-    if (parentItem == m_rootTile) {
+    if (!parentItem || parentItem == m_rootTile) {
         return QModelIndex();
     }
 
@@ -489,6 +489,13 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
             if ((*it).isObject()) {
                 avail = parseTilingJSon(*it, layoutDirection, avail, actualParent);
             }
+        }
+        //make sure the children fill exactly the parent, eventually enlarging the last
+        if (actualParent->childCount() > 0) {
+            auto *last = actualParent->child(actualParent->childCount() - 1);
+            auto geom = last->relativeGeometry();
+            geom.setRight(actualParent->relativeGeometry().right());
+            last->setRelativeGeometry(geom);
         }
         return avail;
     }
