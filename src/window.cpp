@@ -1685,6 +1685,7 @@ void Window::finishInteractiveMoveResize(bool cancel)
     }
     setElectricBorderMode(QuickTileMode(QuickTileFlag::None));
 
+    m_interactiveMoveResize.counter++;
     Q_EMIT clientFinishUserMovedResized(this);
 }
 
@@ -4527,6 +4528,11 @@ void Window::setLastUsageSerial(quint32 serial)
 quint32 Window::lastUsageSerial() const
 {
     return m_lastUsageSerial;
+}
+
+uint32_t Window::interactiveMoveResizeCount() const
+{
+    return m_interactiveMoveResize.counter;
 }
 
 } // namespace KWin

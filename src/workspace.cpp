@@ -46,6 +46,7 @@
 #endif
 #include "decorations/decorationbridge.h"
 #include "main.h"
+#include "placementtracker.h"
 #include "unmanaged.h"
 #include "useractions.h"
 #include "utils/xcbutils.h"
@@ -65,6 +66,22 @@
 
 namespace KWin
 {
+
+static QString getOutputsHash()
+{
+    const auto output = kwinApp()->platform()->enabledOutputs();
+    QCryptographicHash hash(QCryptographicHash::Md5);
+    for (const auto &output : output) {
+        if (!output->edid().isEmpty()) {
+            hash.addData(output->edid());
+        } else {
+            hash.addData(output->name().toLatin1());
+        }
+        const auto geometry = output->geometry();
+        hash.addData(reinterpret_cast<const char *>(&geometry), sizeof(geometry));
+    }
+    return QString::fromLatin1(hash.result().toHex());
+}
 
 X11EventFilterContainer::X11EventFilterContainer(X11EventFilter *filter)
     : m_filter(filter)
@@ -123,6 +140,7 @@ Workspace::Workspace()
     , m_sessionManager(new SessionManager(this))
     , m_focusChain(std::make_unique<FocusChain>())
     , m_applicationMenu(std::make_unique<ApplicationMenu>())
+    , m_placementTracker(std::make_unique<PlacementTracker>())
 {
     // If KWin was already running it saved its configuration after loosing the selection -> Reread
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
@@ -280,6 +298,10 @@ void Workspace::init()
     QMetaObject::invokeMethod(this, "workspaceInitialized", Qt::QueuedConnection);
 
     // TODO: ungrabXServer()
+
+    connect(this, &Workspace::windowAdded, m_placementTracker.get(), &PlacementTracker::add);
+    connect(this, &Workspace::windowRemoved, m_placementTracker.get(), &PlacementTracker::remove);
+    m_placementTracker->setKey(getOutputsHash());
 }
 
 void Workspace::initializeX11()
@@ -2014,6 +2036,9 @@ void Workspace::checkTransients(xcb_window_t w)
  */
 void Workspace::desktopResized()
 {
+    const auto outputs = kwinApp()->platform()->enabledOutputs();
+    m_placementTracker->inhibit();
+
     const QRect oldGeometry = m_geometry;
     m_geometry = QRect();
     for (const Output *output : std::as_const(m_outputs)) {
@@ -2033,6 +2058,10 @@ void Workspace::desktopResized()
     // TODO: emit a signal instead and remove the deep function calls into edges and effects
     ScreenEdges::self()->recreateEdges();
 
+    m_placementTracker->uninhibit();
+    auto key = getOutputsHash();
+    m_placementTracker->restore(key);
+    m_placementTracker->setKey(key);
     if (m_geometry != oldGeometry) {
         Q_EMIT geometryChanged();
     }

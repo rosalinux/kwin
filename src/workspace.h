@@ -61,6 +61,7 @@ class X11Window;
 class X11EventFilter;
 class FocusChain;
 class ApplicationMenu;
+class PlacementTracker;
 enum class Predicate;
 #if KWIN_BUILD_ACTIVITIES
 class Activities;
@@ -713,6 +714,7 @@ private:
 #if KWIN_BUILD_ACTIVITIES
     std::unique_ptr<Activities> m_activities;
 #endif
+    std::unique_ptr<PlacementTracker> m_placementTracker;
 
 private:
     friend bool performTransiencyCheck();
