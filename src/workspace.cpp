@@ -1217,6 +1217,9 @@ void Workspace::slotOutputDisabled(Output *output)
         if (window->output() == output) {
             window->setOutput(kwinApp()->platform()->outputAt(window->frameGeometry().center()));
         }
+        if (window->moveResizeOutput() == output) {
+            window->setMoveResizeOutput(kwinApp()->platform()->outputAt(window->moveResizeGeometry().center()));
+        }
     }
 }
 

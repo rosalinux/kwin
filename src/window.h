@@ -1199,6 +1199,13 @@ public:
     QRect moveResizeGeometry() const;
 
     /**
+     * Returns the output where the last move or resize operation has occurred. The
+     * window is expected to land on this output after the move/resize operation completes.
+     */
+    Output *moveResizeOutput() const;
+    void setMoveResizeOutput(Output *output);
+
+    /**
      * Returns @c true if the Client is being interactively moved; otherwise @c false.
      */
     bool isInteractiveMove() const
@@ -1951,6 +1958,7 @@ private:
     int m_blockGeometryUpdates = 0; // > 0 = New geometry is remembered, but not actually set
     MoveResizeMode m_pendingMoveResizeMode = MoveResizeMode::None;
     friend class GeometryUpdatesBlocker;
+    Output *m_moveResizeOutput = nullptr;
     QRect m_moveResizeGeometry;
     QRect m_keyboardGeometryRestore;
     QRect m_maximizeGeometryRestore;

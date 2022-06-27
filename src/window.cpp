@@ -3654,21 +3654,37 @@ void Window::setMoveResizeGeometry(const QRect &geo)
     m_moveResizeGeometry = geo;
 }
 
+Output *Window::moveResizeOutput() const
+{
+    return m_moveResizeOutput;
+}
+
+void Window::setMoveResizeOutput(Output *output)
+{
+    m_moveResizeOutput = output;
+}
+
 void Window::move(const QPoint &point)
 {
     m_moveResizeGeometry.moveTopLeft(point);
+    m_moveResizeOutput = kwinApp()->platform()->outputAt(m_moveResizeGeometry.center());
+
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::Move);
 }
 
 void Window::resize(const QSize &size)
 {
     m_moveResizeGeometry.setSize(size);
+    m_moveResizeOutput = kwinApp()->platform()->outputAt(m_moveResizeGeometry.center());
+
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::Resize);
 }
 
 void Window::moveResize(const QRect &rect)
 {
     m_moveResizeGeometry = rect;
+    m_moveResizeOutput = kwinApp()->platform()->outputAt(m_moveResizeGeometry.center());
+
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::MoveResize);
 }
 
@@ -4013,15 +4029,15 @@ void Window::checkWorkspacePosition(QRect oldGeometry, const VirtualDesktop *old
         oldGeometry = newGeom;
     }
     if (isRequestedFullScreen()) {
-        moveResize(workspace()->clientArea(FullScreenArea, this, newGeom.center()));
-        updateGeometryRestoresForFullscreen(kwinApp()->platform()->outputAt(newGeom.center()));
+        moveResize(workspace()->clientArea(FullScreenArea, this, moveResizeOutput()));
+        updateGeometryRestoresForFullscreen(moveResizeOutput());
         return;
     }
 
     if (requestedMaximizeMode() != MaximizeRestore) {
         changeMaximize(false, false, true); // adjust size
         QRect geom = moveResizeGeometry();
-        const QRect screenArea = workspace()->clientArea(ScreenArea, this, geom.center());
+        const QRect screenArea = workspace()->clientArea(ScreenArea, this, moveResizeOutput());
         checkOffscreenPosition(&geom, screenArea);
         moveResize(geom);
         return;
@@ -4053,12 +4069,12 @@ void Window::checkWorkspacePosition(QRect oldGeometry, const VirtualDesktop *old
     QRect screenArea;
     if (workspace()->inUpdateClientArea()) {
         // check if the window is on an about to be destroyed output
-        Output *newOutput = output();
+        Output *newOutput = moveResizeOutput();
         if (!kwinApp()->platform()->enabledOutputs().contains(newOutput)) {
             newOutput = kwinApp()->platform()->outputAt(newGeom.center());
         }
         // we need to find the screen area as it was before the change
-        oldScreenArea = workspace()->previousScreenSizes().value(output());
+        oldScreenArea = workspace()->previousScreenSizes().value(moveResizeOutput());
         if (oldScreenArea.isNull()) {
             oldScreenArea = newOutput->geometry();
         }

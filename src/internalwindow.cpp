@@ -552,6 +552,7 @@ void InternalWindow::updateInternalWindowGeometry()
     if (!isInteractiveMoveResize()) {
         const QRect rect = clientRectToFrameRect(m_handle->geometry());
         setMoveResizeGeometry(rect);
+        setMoveResizeOutput(kwinApp()->platform()->outputAt(rect.center()));
         commitGeometry(rect);
     }
 }

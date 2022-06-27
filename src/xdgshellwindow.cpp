@@ -204,6 +204,7 @@ void XdgSurfaceWindow::maybeUpdateMoveResizeGeometry(const QRect &rect)
     }
 
     setMoveResizeGeometry(rect);
+    setMoveResizeOutput(kwinApp()->platform()->outputAt(rect.center()));
 }
 
 static QRect gravitateGeometry(const QRect &rect, const QRect &bounds, Gravity gravity)
