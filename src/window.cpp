@@ -1796,7 +1796,7 @@ void Window::handleInteractiveMoveResize(const QPointF &local, const QPointF &gl
             checkQuickTilingMaximizationZones(global.x(), global.y());
         }
     }
-    if (input()->keyboardModifiers() & Qt::ShiftModifier) {
+    if (input()->keyboardModifiers() & Qt::ShiftModifier && output()->customTiling()->tileGeometries().count() > 1) {
         const auto &r = quickTileGeometry(QuickTileFlag::CustomZone, Cursors::self()->mouse()->pos());
         if (r.isEmpty()) {
             outline()->hide();
