@@ -616,7 +616,6 @@ void CustomTiling::saveSettings()
     }
 
     auto obj = tileToJSon(m_rootTile);
-    qWarning() << obj;
     QJsonDocument doc(obj);
     KConfigGroup cg = kwinApp()->config()->group(QStringLiteral("Tiling"));
     cg = KConfigGroup(&cg, m_output->uuid().toString(QUuid::WithoutBraces));
