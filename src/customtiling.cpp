@@ -145,7 +145,8 @@ void TileData::split(KWin::TileData::LayoutDirection layoutDirection)
         return;
     }
     qWarning() << "SPLITTING";
-    if (m_layoutDirection == layoutDirection) {
+
+    if (m_parentItem && m_layoutDirection == layoutDirection) {
         // Add a new cell to the current layout
         QRectF newGeo;
         if (layoutDirection == LayoutDirection::Horizontal) {
@@ -163,6 +164,10 @@ void TileData::split(KWin::TileData::LayoutDirection layoutDirection)
         Q_EMIT m_tiling->tileGeometriesChanged();
         m_tiling->addTile(newGeo, m_layoutDirection, m_parentItem);
     } else {
+        // are we root?
+        if (!m_parentItem) {
+            m_layoutDirection = layoutDirection;
+        }
         // Do a new layout with 2 cells inside this one
         auto newGeo = m_relativeGeometry;
         if (layoutDirection == LayoutDirection::Horizontal) {
@@ -292,6 +297,11 @@ QList<QRectF> CustomTiling::tileGeometries() const
     return geometries;
 }
 
+TileData *CustomTiling::rootTile() const
+{
+    return m_rootTile;
+}
+
 QVariant CustomTiling::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid()) {
@@ -396,7 +406,7 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
         const auto &obj = val.toObject();
         if (obj.contains(QStringLiteral("tiles")) || obj.contains(QStringLiteral("floatingTiles"))) {
             // if (arr.count() > 1 && layoutDirection != TileData::LayoutDirection::Floating) {
-            if (obj.contains(QStringLiteral("floatingTiles"))) {
+            if (obj.contains(QStringLiteral("floatingTiles"))) { //TODO: remove?
                 // Are there floating tiles?
                 const auto arr = obj.value(QStringLiteral("floatingTiles"));
                 if (arr.isArray()) {
@@ -407,7 +417,8 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                 // It's a layout
                 const auto arr = obj.value(QStringLiteral("tiles"));
                 const auto direction = obj.value(QStringLiteral("layoutDirection"));
-                if (arr.isArray() && direction.isString()) {
+                // Ignore arrays with only a single item in it
+                if (arr.isArray() && direction.isString() && arr.toArray().count() > 1) {
                     const TileData::LayoutDirection dir = strToLayoutDirection(direction.toString());
 
                     auto avail = availableArea;
@@ -504,7 +515,7 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
 
 TileData *CustomTiling::addTile(const QRectF &relativeGeometry, TileData::LayoutDirection layoutDirection, TileData *parentTile)
 {
-    auto index = createIndex(parentTile->row(), 0, parentTile);
+    auto index = parentTile == m_rootTile ? QModelIndex() : createIndex(parentTile->row(), 0, parentTile);
     beginInsertRows(index, parentTile->childCount(), parentTile->childCount());
     TileData *tile = new TileData(this, parentTile);
     tile->setRelativeGeometry(relativeGeometry);
@@ -549,7 +560,7 @@ void CustomTiling::readSettings()
         return;
     }
 
-    parseTilingJSon(doc.object(), TileData::LayoutDirection::Floating, QRectF(0, 0, 1, 1), nullptr);
+    parseTilingJSon(doc.object(), TileData::LayoutDirection::Horizontal, QRectF(0, 0, 1, 1), nullptr);
     m_rootTile->print();
     Q_EMIT tileGeometriesChanged();
 }
@@ -591,7 +602,7 @@ QJsonObject CustomTiling::tileToJSon(TileData *tile)
     }
 
     const int nChildren = tile->childCount();
-    if (nChildren > 0) {
+    if (nChildren > 1) {
         QJsonArray arr;
         for (int i = 0; i < nChildren; ++i) {
             arr.append(tileToJSon(tile->child(i)));

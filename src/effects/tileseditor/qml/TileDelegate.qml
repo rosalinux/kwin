@@ -18,6 +18,8 @@ import org.kde.kitemmodels 1.0 as KitemModels
 Item {
     id: delegate
     required property QtObject tileData
+    property alias deleteVisible: deleteButton.visible
+
     x: Math.round(tileData.absoluteGeometry.x)
     y: Math.round(tileData.absoluteGeometry.y)
     z: tileData.layoutDirection === KWinComponents.TileData.Floating ? 1 : 0
@@ -70,6 +72,7 @@ Item {
                 onReleased: tileData.split(KWinComponents.TileData.Vertical)
             }
             PlasmaComponents.Button {
+                id: deleteButton
                 Layout.fillWidth: true
                 icon.name: "edit-delete"
                 text: i18n("Delete")

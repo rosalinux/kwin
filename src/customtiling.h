@@ -90,8 +90,7 @@ private:
 class KWIN_EXPORT CustomTiling : public QAbstractItemModel
 {
     Q_OBJECT
-    //TODO: a model
-    Q_PROPERTY(QList<QRectF> tileGeometries READ tileGeometries CONSTANT)
+    Q_PROPERTY(TileData *rootTile READ rootTile CONSTANT)
 
 public:
     enum Roles {
@@ -103,6 +102,7 @@ public:
     Output *output() const;
 
     QList<QRectF> tileGeometries() const;
+    TileData *rootTile() const;
 
     // QAbstractItemModel overrides
     QHash<int, QByteArray> roleNames() const override;

@@ -64,10 +64,17 @@ FocusScope {
         }
 
         Repeater {
+            id: tilesRepeater
             model: KitemModels.KDescendantsProxyModel {
                 model: KWinComponents.Workspace.customTilingForScreen(root.targetScreen.name)
             }
             delegate: TileDelegate {}
+        }
+
+        TileDelegate {
+            tileData: KWinComponents.Workspace.customTilingForScreen(root.targetScreen.name).rootTile
+            visible: tilesRepeater.count == 0
+            deleteVisible: false
         }
     }
 }
