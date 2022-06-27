@@ -1214,9 +1214,6 @@ void Workspace::slotOutputDisabled(Output *output)
 
     const auto stack = stackingOrder();
     for (Window *window : stack) {
-        if (window->output() == output) {
-            window->setOutput(kwinApp()->platform()->outputAt(window->frameGeometry().center()));
-        }
         if (window->moveResizeOutput() == output) {
             window->setMoveResizeOutput(kwinApp()->platform()->outputAt(window->moveResizeGeometry().center()));
         }
@@ -2042,6 +2039,11 @@ void Workspace::desktopResized()
 
     updateClientArea();
     saveOldScreenSizes(); // after updateClientArea(), so that one still uses the previous one
+
+    const auto stack = stackingOrder();
+    for (Window *window : stack) {
+        window->setOutput(kwinApp()->platform()->outputAt(window->frameGeometry().center()));
+    }
 
     // TODO: emit a signal instead and remove the deep function calls into edges and effects
     ScreenEdges::self()->recreateEdges();
