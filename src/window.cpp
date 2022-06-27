@@ -1803,7 +1803,7 @@ void Window::handleInteractiveMoveResize(const QPointF &local, const QPointF &gl
         } else {
             outline()->show(r, moveResizeGeometry());
         }
-    } else {
+    } else if (!m_electricMaximizing) {
         //FIXME
         outline()->hide();
     }
