@@ -866,7 +866,7 @@ XdgSurfaceConfigure *XdgToplevelWindow::sendRoleConfigure() const
     }
 
     if (nextClientSize.isEmpty()) {
-        QSize bounds = workspace()->clientArea(PlacementArea, this, output()).size();
+        QSize bounds = workspace()->clientArea(PlacementArea, this, moveResizeOutput()).size();
         bounds.rwidth() -= framePadding.width();
         bounds.rheight() -= framePadding.height();
         m_shellSurface->sendConfigureBounds(bounds);
