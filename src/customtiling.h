@@ -50,7 +50,7 @@ public:
     QRectF relativeGeometry() const;
     QRectF absoluteGeometry() const;
 
-    void setLayoutDirection(TileData::LayoutDirection dir);
+    void setInternalLayoutDirection(TileData::LayoutDirection dir);
     TileData::LayoutDirection layoutDirection() const;
 
     bool isLayout() const;
@@ -59,7 +59,7 @@ public:
     void removeChild(TileData *child);
 
     Q_INVOKABLE void resizeInLayout(qreal delta);
-    Q_INVOKABLE void split(KWin::TileData::LayoutDirection layoutDirection);
+    Q_INVOKABLE void split(KWin::TileData::LayoutDirection newDirection);
     Q_INVOKABLE void remove();
 
     void print();
@@ -81,7 +81,7 @@ private:
 
     CustomTiling *m_tiling;
     QRectF m_relativeGeometry;
-    TileData::LayoutDirection m_layoutDirection;
+    TileData::LayoutDirection m_internalLayoutDirection;
 };
 
 /**

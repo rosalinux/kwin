@@ -49,7 +49,6 @@ void TileData::print()
     for (int i = 0; i < level; ++i) {
         spaces += "  ";
     }
-    qWarning() << spaces << m_relativeGeometry << m_layoutDirection;
     for (auto t : m_childItems) {
         t->print();
     }
@@ -66,9 +65,9 @@ void TileData::setRelativeGeometry(const QRectF &geom)
     for (auto t : m_childItems) {
         auto childGeom = t->relativeGeometry();
         childGeom = childGeom.intersected(geom);
-        if (m_layoutDirection == LayoutDirection::Horizontal) {
+        if (layoutDirection() == LayoutDirection::Horizontal) {
             childGeom.setHeight(geom.height());
-        } else if (m_layoutDirection == LayoutDirection::Vertical) {
+        } else if (layoutDirection() == LayoutDirection::Vertical) {
             childGeom.setWidth(geom.width());
         }
         t->setRelativeGeometry(childGeom);
@@ -92,14 +91,18 @@ QRectF TileData::absoluteGeometry() const
                   m_relativeGeometry.height() * geom.height());
 }
 
-void TileData::setLayoutDirection(TileData::LayoutDirection dir)
+void TileData::setInternalLayoutDirection(TileData::LayoutDirection dir)
 {
-    m_layoutDirection = dir;
+    m_internalLayoutDirection = dir;
 }
 
 TileData::LayoutDirection TileData::layoutDirection() const
 {
-    return m_layoutDirection;
+    if (isLayout() || !m_parentItem) {
+        return m_internalLayoutDirection;
+    } else {
+        return m_parentItem->layoutDirection();
+    }
 }
 
 bool TileData::isLayout() const
@@ -109,7 +112,7 @@ bool TileData::isLayout() const
 
 void TileData::resizeInLayout(qreal delta)
 {
-    if (!m_parentItem || m_layoutDirection == LayoutDirection::Floating) {
+    if (!m_parentItem || layoutDirection() == LayoutDirection::Floating) {
         return;
     }
 
@@ -124,7 +127,7 @@ void TileData::resizeInLayout(qreal delta)
     auto geom = m_relativeGeometry;
     auto otherGeom = m_parentItem->m_childItems[index - 1]->relativeGeometry();
 
-    if (m_layoutDirection == LayoutDirection::Horizontal) {
+    if (layoutDirection() == LayoutDirection::Horizontal) {
         qreal relativeDelta = delta / areaGeom.width();
         geom.setLeft(geom.left() + relativeDelta);
         otherGeom.setRight(otherGeom.right() + relativeDelta);
@@ -138,22 +141,21 @@ void TileData::resizeInLayout(qreal delta)
     m_parentItem->m_childItems[index - 1]->setRelativeGeometry(otherGeom);
 }
 
-void TileData::split(KWin::TileData::LayoutDirection layoutDirection)
+void TileData::split(KWin::TileData::LayoutDirection newDirection)
 {
     //TODO: support floating
-    if (layoutDirection == LayoutDirection::Floating) {
+    if (newDirection == LayoutDirection::Floating) {
         return;
     }
-    qWarning() << "SPLITTING";
 
-    if (m_parentItem && m_layoutDirection == layoutDirection) {
+    if (m_parentItem && layoutDirection() == newDirection) {
         // Add a new cell to the current layout
         QRectF newGeo;
-        if (layoutDirection == LayoutDirection::Horizontal) {
+        if (newDirection == LayoutDirection::Horizontal) {
             m_relativeGeometry.setWidth(m_relativeGeometry.width() / 2);
             newGeo = m_relativeGeometry;
             newGeo.moveLeft(newGeo.x() + newGeo.width());
-        } else if (layoutDirection == LayoutDirection::Vertical) {
+        } else if (newDirection == LayoutDirection::Vertical) {
             m_relativeGeometry.setHeight(m_relativeGeometry.height() / 2);
             newGeo = m_relativeGeometry;
             newGeo.moveTop(newGeo.y() + newGeo.height());
@@ -162,24 +164,21 @@ void TileData::split(KWin::TileData::LayoutDirection layoutDirection)
         Q_EMIT relativeGeometryChanged(m_relativeGeometry);
         Q_EMIT absoluteGeometryChanged();
         Q_EMIT m_tiling->tileGeometriesChanged();
-        m_tiling->addTile(newGeo, m_layoutDirection, m_parentItem);
+        m_tiling->addTile(newGeo, layoutDirection(), m_parentItem);
     } else {
-        // are we root?
-        if (!m_parentItem) {
-            m_layoutDirection = layoutDirection;
-        }
         // Do a new layout with 2 cells inside this one
+        m_internalLayoutDirection = newDirection;
         auto newGeo = m_relativeGeometry;
-        if (layoutDirection == LayoutDirection::Horizontal) {
+        if (newDirection == LayoutDirection::Horizontal) {
             newGeo.setWidth(m_relativeGeometry.width() / 2);
-            m_tiling->addTile(newGeo, layoutDirection, this);
+            m_tiling->addTile(newGeo, newDirection, this);
             newGeo.moveLeft(newGeo.x() + newGeo.width());
-            m_tiling->addTile(newGeo, layoutDirection, this);
-        } else if (layoutDirection == LayoutDirection::Vertical) {
+            m_tiling->addTile(newGeo, newDirection, this);
+        } else if (newDirection == LayoutDirection::Vertical) {
             newGeo.setHeight(m_relativeGeometry.height() / 2);
-            m_tiling->addTile(newGeo, layoutDirection, this);
+            m_tiling->addTile(newGeo, newDirection, this);
             newGeo.moveTop(newGeo.y() + newGeo.height());
-            m_tiling->addTile(newGeo, layoutDirection, this);
+            m_tiling->addTile(newGeo, newDirection, this);
         }
     }
 }
@@ -428,7 +427,7 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                             avail.setHeight(height.toDouble());
                         }
                         if (!parentTile) {
-                            m_rootTile->setLayoutDirection(dir);
+                            m_rootTile->setInternalLayoutDirection(dir);
                             parseTilingJSon(arr, dir, avail, m_rootTile);
                         } else {
                             TileData *tile = addTile(avail, dir, actualParent);
@@ -442,7 +441,7 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                             avail.setWidth(width.toDouble());
                         }
                         if (!parentTile) {
-                            m_rootTile->setLayoutDirection(dir);
+                            m_rootTile->setInternalLayoutDirection(dir);
                             parseTilingJSon(arr, dir, avail, m_rootTile);
                         } else {
                             TileData *tile = addTile(avail, dir, actualParent);
@@ -458,6 +457,9 @@ QRectF CustomTiling::parseTilingJSon(const QJsonValue &val, TileData::LayoutDire
                     }
                 }
             }
+        } else if (!parentTile) {
+            // It's a root tile without children, do nothing
+            return availableArea;
         } else if (layoutDirection == TileData::LayoutDirection::Horizontal) {
             QRectF rect(availableArea.x(), availableArea.y(), 0, availableArea.height());
             const auto width = obj.value(QStringLiteral("width"));
@@ -519,7 +521,7 @@ TileData *CustomTiling::addTile(const QRectF &relativeGeometry, TileData::Layout
     beginInsertRows(index, parentTile->childCount(), parentTile->childCount());
     TileData *tile = new TileData(this, parentTile);
     tile->setRelativeGeometry(relativeGeometry);
-    tile->setLayoutDirection(layoutDirection);
+    tile->setInternalLayoutDirection(layoutDirection);
     parentTile->appendChild(tile);
     endInsertRows();
     return tile;
@@ -569,40 +571,34 @@ QJsonObject CustomTiling::tileToJSon(TileData *tile)
 {
     QJsonObject obj;
 
-    TileData *parentTile = tile->parentItem();
-    if (!parentTile) {
-        parentTile = m_rootTile;
-    }
-
     switch (tile->layoutDirection()) {
     case TileData::LayoutDirection::Horizontal:
-        obj[QStringLiteral("layoutDirection")] = QStringLiteral("horizontal");
+        obj[QStringLiteral("width")] = tile->relativeGeometry().width();
         break;
     case TileData::LayoutDirection::Vertical:
-        obj[QStringLiteral("layoutDirection")] = QStringLiteral("vertical");
+        obj[QStringLiteral("height")] = tile->relativeGeometry().height();
         break;
     case TileData::LayoutDirection::Floating:
     default:
-        obj[QStringLiteral("layoutDirection")] = QStringLiteral("floating");
         obj[QStringLiteral("x")] = tile->relativeGeometry().x();
         obj[QStringLiteral("y")] = tile->relativeGeometry().y();
         obj[QStringLiteral("width")] = tile->relativeGeometry().width();
         obj[QStringLiteral("height")] = tile->relativeGeometry().height();
     }
 
-    switch (parentTile->layoutDirection()) {
-    case TileData::LayoutDirection::Horizontal:
-        obj[QStringLiteral("width")] = tile->relativeGeometry().width();
-        break;
-    case TileData::LayoutDirection::Vertical:
-        obj[QStringLiteral("height")] = tile->relativeGeometry().height();
-        break;
-    default:
-        break;
-    }
-
     const int nChildren = tile->childCount();
     if (nChildren > 1) {
+        switch (tile->layoutDirection()) {
+        case TileData::LayoutDirection::Horizontal:
+            obj[QStringLiteral("layoutDirection")] = QStringLiteral("horizontal");
+            break;
+        case TileData::LayoutDirection::Vertical:
+            obj[QStringLiteral("layoutDirection")] = QStringLiteral("vertical");
+            break;
+        case TileData::LayoutDirection::Floating:
+        default:
+            obj[QStringLiteral("layoutDirection")] = QStringLiteral("floating");
+        }
         QJsonArray arr;
         for (int i = 0; i < nChildren; ++i) {
             arr.append(tileToJSon(tile->child(i)));
@@ -620,6 +616,7 @@ void CustomTiling::saveSettings()
     }
 
     auto obj = tileToJSon(m_rootTile);
+    qWarning() << obj;
     QJsonDocument doc(obj);
     KConfigGroup cg = kwinApp()->config()->group(QStringLiteral("Tiling"));
     cg = KConfigGroup(&cg, m_output->uuid().toString(QUuid::WithoutBraces));
