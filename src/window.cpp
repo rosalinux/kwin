@@ -1666,6 +1666,7 @@ bool Window::startInteractiveMoveResize()
 
 void Window::finishInteractiveMoveResize(bool cancel)
 {
+    const bool wasMove = isInteractiveMove();
     GeometryUpdatesBlocker blocker(this);
     leaveInteractiveMoveResize();
 
@@ -1684,7 +1685,7 @@ void Window::finishInteractiveMoveResize(bool cancel)
     if (isElectricBorderMaximizing()) {
         setQuickTileMode(electricBorderMode());
         setElectricBorderMaximizing(false);
-    } else if (input()->keyboardModifiers() & Qt::ShiftModifier) {
+    } else if (wasMove && (input()->keyboardModifiers() & Qt::ShiftModifier)) {
         outline()->hide();
         setQuickTileMode(QuickTileFlag::CustomZone);
     }
@@ -1795,17 +1796,18 @@ void Window::handleInteractiveMoveResize(const QPointF &local, const QPointF &gl
         } else if (quickTileMode() == QuickTileMode(QuickTileFlag::None) && isResizable()) {
             checkQuickTilingMaximizationZones(global.x(), global.y());
         }
-    }
-    if (input()->keyboardModifiers() & Qt::ShiftModifier && output()->customTiling()->tileGeometries().count() > 1) {
-        const auto &r = quickTileGeometry(QuickTileFlag::CustomZone, Cursors::self()->mouse()->pos());
-        if (r.isEmpty()) {
+
+        if (input()->keyboardModifiers() & Qt::ShiftModifier && output()->customTiling()->tileGeometries().count() > 1) {
+            const auto &r = quickTileGeometry(QuickTileFlag::CustomZone, Cursors::self()->mouse()->pos());
+            if (r.isEmpty()) {
+                outline()->hide();
+            } else {
+                outline()->show(r, moveResizeGeometry());
+            }
+        } else if (!m_electricMaximizing) {
+            //FIXME
             outline()->hide();
-        } else {
-            outline()->show(r, moveResizeGeometry());
         }
-    } else if (!m_electricMaximizing) {
-        //FIXME
-        outline()->hide();
     }
 }
 
