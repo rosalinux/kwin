@@ -1648,6 +1648,7 @@ bool Window::startInteractiveMoveResize()
         if (interactiveMoveResizeGravity() != Gravity::None) { // Cannot use isResize() yet
             // Exit quick tile mode when the user attempts to resize a tiled window
             updateQuickTileMode(QuickTileFlag::None); // Do so without restoring original geometry
+            disconnect(output()->customTiling(), nullptr, this, nullptr);
             setGeometryRestore(moveResizeGeometry());
             doSetQuickTileMode();
             Q_EMIT quickTileModeChanged();
@@ -3819,6 +3820,7 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
             setMaximize(true, true);
             setGeometryRestore(effectiveGeometryRestore);
         }
+        disconnect(output()->customTiling(), nullptr, this, nullptr);
         doSetQuickTileMode();
         Q_EMIT quickTileModeChanged();
         return;
@@ -3848,6 +3850,7 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
             setMaximize(false, false);
         }
 
+        disconnect(output()->customTiling(), nullptr, this, nullptr);
         doSetQuickTileMode();
         Q_EMIT quickTileModeChanged();
 
@@ -3959,11 +3962,6 @@ void Window::sendToOutput(Output *newOutput)
         return;
     }
 
-    // TODO: remove the quick tile mode?
-    if (m_quickTileMode == QuickTileMode(QuickTileFlag::CustomZone)) {
-        disconnect(output()->customTiling(), nullptr, this, nullptr);
-    }
-
     GeometryUpdatesBlocker blocker(this);
 
     // operating on the maximized / quicktiled window would leave the old geom_restore behind,
@@ -3975,6 +3973,7 @@ void Window::sendToOutput(Output *newOutput)
     }
     if (qtMode != QuickTileMode(QuickTileFlag::None)) {
         setQuickTileMode(QuickTileFlag::None, true);
+        disconnect(output()->customTiling(), nullptr, this, nullptr);
     }
 
     QRectF oldScreenArea = workspace()->clientArea(MaximizeArea, this);
