@@ -33,7 +33,9 @@ class KWIN_EXPORT TileData : public QObject
     Q_PROPERTY(QRectF relativeGeometry READ relativeGeometry NOTIFY relativeGeometryChanged)
     Q_PROPERTY(QRectF absoluteGeometry READ absoluteGeometry NOTIFY absoluteGeometryChanged)
     Q_PROPERTY(KWin::TileData::LayoutDirection layoutDirection READ layoutDirection CONSTANT)
+    Q_PROPERTY(QList<TileData *> tiles READ childTiles NOTIFY childTilesChanged)
     Q_PROPERTY(bool isLayout READ isLayout NOTIFY isLayoutChanged)
+    Q_PROPERTY(bool canBeRemoved READ canBeRemoved CONSTANT)
 
 public:
     enum class LayoutDirection {
@@ -51,12 +53,16 @@ public:
     QRectF absoluteGeometry() const;
 
     void setInternalLayoutDirection(TileData::LayoutDirection dir);
+    TileData::LayoutDirection internalLayoutDirection() const;
     TileData::LayoutDirection layoutDirection() const;
 
     bool isLayout() const;
+    bool canBeRemoved() const;
 
     void appendChild(TileData *child);
     void removeChild(TileData *child);
+
+    QList<TileData *> childTiles() const;
 
     Q_INVOKABLE void resizeInLayout(qreal delta);
     Q_INVOKABLE void split(KWin::TileData::LayoutDirection newDirection);
@@ -74,6 +80,7 @@ Q_SIGNALS:
     void relativeGeometryChanged(const QRectF &relativeGeometry);
     void absoluteGeometryChanged();
     void isLayoutChanged(bool isLayout);
+    void childTilesChanged();
 
 private:
     QVector<TileData *> m_childItems;
@@ -81,7 +88,8 @@ private:
 
     CustomTiling *m_tiling;
     QRectF m_relativeGeometry;
-    TileData::LayoutDirection m_internalLayoutDirection;
+    TileData::LayoutDirection m_internalLayoutDirection = LayoutDirection::Floating;
+    bool m_canBeRemoved = true;
 };
 
 /**
@@ -114,6 +122,8 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
 
+    Q_INVOKABLE void createFloatingTile(const QRectF &relativeGeometry);
+
 Q_SIGNALS:
     void tileGeometriesChanged();
 
@@ -124,13 +134,14 @@ private:
     void readSettings();
     void saveSettings();
     QJsonObject tileToJSon(TileData *parentTile);
-    QRectF parseTilingJSon(const QJsonValue &val, TileData::LayoutDirection layoutDirection, const QRectF &availableArea, TileData *parentTile);
+    TileData *parseTilingJSon(const QJsonValue &val, const QRectF &availableArea, TileData *parentTile);
 
     Q_DISABLE_COPY(CustomTiling)
 
     Output *m_output = nullptr;
     QTimer *m_saveTimer = nullptr;
     TileData *m_rootTile = nullptr;
+    TileData *m_rootLayoutTile = nullptr;
     TileData *m_rootFloatingTile = nullptr;
     friend class TileData;
 };

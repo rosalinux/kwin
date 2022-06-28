@@ -18,7 +18,6 @@ import org.kde.kitemmodels 1.0 as KitemModels
 Item {
     id: delegate
     required property QtObject tileData
-    property alias deleteVisible: deleteButton.visible
 
     x: Math.round(tileData.absoluteGeometry.x)
     y: Math.round(tileData.absoluteGeometry.y)
@@ -46,7 +45,7 @@ Item {
 
     Item {
         anchors.fill: parent
-        visible: !tileData.isLayout
+        visible: !tileData.isLayout || (tileData.layoutDirection !== KWinComponents.TileData.Floating && tileData.tiles.length === 0)
         Rectangle {
             anchors {
                 fill: parent
@@ -73,6 +72,7 @@ Item {
             }
             PlasmaComponents.Button {
                 id: deleteButton
+                visible: tileData.canBeRemoved
                 Layout.fillWidth: true
                 icon.name: "edit-delete"
                 text: i18n("Delete")

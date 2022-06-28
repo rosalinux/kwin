@@ -71,10 +71,14 @@ FocusScope {
             delegate: TileDelegate {}
         }
 
-        TileDelegate {
-            tileData: KWinComponents.Workspace.customTilingForScreen(root.targetScreen.name).rootTile
-            visible: tilesRepeater.count == 0
-            deleteVisible: false
+        PlasmaComponents.Button {
+            anchors {
+                right: parent.right
+                bottom: parent.bottom
+                margins: PlasmaCore.Units.smallSpacing
+            }
+            text: i18n("Add Floating tile")
+            onClicked: KWinComponents.Workspace.customTilingForScreen(root.targetScreen.name).createFloatingTile(Qt.rect(0.2,0.2, 0.3, 0.25))
         }
     }
 }
