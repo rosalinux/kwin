@@ -43,10 +43,10 @@ Outline::~Outline()
 
 void Outline::show()
 {
-    if (m_visual.isNull()) {
+    if (!m_visual) {
         createHelper();
     }
-    if (m_visual.isNull()) {
+    if (!m_visual) {
         // something went wrong
         return;
     }
@@ -62,7 +62,7 @@ void Outline::hide()
     }
     m_active = false;
     Q_EMIT activeChanged();
-    if (m_visual.isNull()) {
+    if (!m_visual) {
         return;
     }
     m_visual->hide();
@@ -107,10 +107,10 @@ QRect Outline::unifiedGeometry() const
 
 void Outline::createHelper()
 {
-    if (!m_visual.isNull()) {
+    if (m_visual) {
         return;
     }
-    m_visual.reset(kwinApp()->platform()->createOutline(this));
+    m_visual = kwinApp()->platform()->createOutline(this);
 }
 
 void Outline::compositingChanged()

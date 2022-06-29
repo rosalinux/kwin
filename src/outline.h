@@ -14,6 +14,7 @@
 #include <kwinglobals.h>
 
 #include <kwin_export.h>
+#include <memory>
 
 class QQmlContext;
 class QQmlComponent;
@@ -110,7 +111,7 @@ Q_SIGNALS:
 
 private:
     void createHelper();
-    QScopedPointer<OutlineVisual> m_visual;
+    std::unique_ptr<OutlineVisual> m_visual;
     QRect m_outlineGeometry;
     QRect m_visualParentGeometry;
     bool m_active;
