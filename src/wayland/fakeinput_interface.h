@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QPointF>
 #include <QSizeF>
+#include <memory>
 
 struct wl_resource;
 
@@ -41,7 +42,7 @@ class KWIN_EXPORT FakeInputInterface : public QObject
     Q_OBJECT
 
 public:
-    explicit FakeInputInterface(Display *display, QObject *parent = nullptr);
+    explicit FakeInputInterface(Display *display);
     ~FakeInputInterface() override;
 
 Q_SIGNALS:
@@ -51,8 +52,10 @@ Q_SIGNALS:
      */
     void deviceCreated(KWaylandServer::FakeInputDevice *device);
 
+    void deviceDestroyed(KWaylandServer::FakeInputDevice *device);
+
 private:
-    QScopedPointer<FakeInputInterfacePrivate> d;
+    std::unique_ptr<FakeInputInterfacePrivate> d;
 };
 
 /**
@@ -146,7 +149,7 @@ Q_SIGNALS:
 private:
     friend class FakeInputInterfacePrivate;
     FakeInputDevice(FakeInputInterface *parent, wl_resource *resource);
-    QScopedPointer<FakeInputDevicePrivate> d;
+    std::unique_ptr<FakeInputDevicePrivate> d;
 };
 
 }
