@@ -225,7 +225,7 @@ void TileData::appendChild(TileData *item)
 
 void TileData::removeChild(TileData *child)
 {
-    const bool wasEmpty = !m_childItems.isEmpty();
+    const bool wasEmpty = m_childItems.isEmpty();
     m_childItems.removeAll(child);
     if (m_childItems.isEmpty() && !wasEmpty) {
         Q_EMIT isLayoutChanged(false);
@@ -449,7 +449,11 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
 
         if (parentTile == m_rootTile) {
             const auto direction = strToLayoutDirection(obj.value(QStringLiteral("layoutDirection")).toString());
-            if () {
+            createdTile = addTile(QRect(0, 0, 1, 1), direction, parentTile);
+            if (direction == TileData::LayoutDirection::Floating) {
+                m_rootFloatingTile = createdTile;
+            } else {
+                m_rootLayoutTile = createdTile;
             }
         } else if (parentTile->internalLayoutDirection() == TileData::LayoutDirection::Horizontal) {
             QRectF rect = availableArea;
@@ -489,8 +493,6 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
             }
         }
 
-        qWarning() << "CREATED TILE" << createdTile << createdTile->relativeGeometry();
-
         if (createdTile && obj.contains(QStringLiteral("tiles"))) {
             // It's a layout
             const auto arr = obj.value(QStringLiteral("tiles"));
@@ -501,21 +503,10 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
                 createdTile->setInternalLayoutDirection(dir);
                 if (dir == TileData::LayoutDirection::Horizontal
                     || dir == TileData::LayoutDirection::Vertical) {
-                    if (parentTile == m_rootTile) {
-                        // Ignore more than one rootLayoutTile
-                        if (m_rootLayoutTile) {
-                            return nullptr;
-                        }
-                        m_rootLayoutTile = createdTile;
-                    }
                     parseTilingJSon(arr, createdTile->relativeGeometry(), createdTile);
                 } else {
-                    // Floating
-                    if (parentTile == m_rootTile && !m_rootFloatingTile) {
-                        m_rootFloatingTile = createdTile;
-                        parseTilingJSon(arr, QRectF(0, 0, 1, 1), m_rootFloatingTile);
-                        return m_rootFloatingTile;
-                    }
+                    // All floating tiles go under m_rootFloatingTile
+                    parseTilingJSon(arr, QRectF(0, 0, 1, 1), m_rootFloatingTile);
                 }
             }
         }
@@ -534,7 +525,8 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
             }
         }
         //make sure the children fill exactly the parent, eventually enlarging the last
-        if (parentTile->childCount() > 0) {
+        if (parentTile->internalLayoutDirection() != TileData::LayoutDirection::Floating
+            && parentTile->childCount() > 0) {
             auto *last = parentTile->child(parentTile->childCount() - 1);
             auto geom = last->relativeGeometry();
             geom.setRight(parentTile->relativeGeometry().right());
