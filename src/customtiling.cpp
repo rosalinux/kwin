@@ -49,7 +49,7 @@ void TileData::print()
     for (int i = 0; i < level; ++i) {
         spaces += "  ";
     }
-    qWarning() << spaces << m_relativeGeometry << m_internalLayoutDirection;
+    qWarning() << spaces << m_relativeGeometry << m_layoutDirection;
     for (auto t : m_childItems) {
         t->print();
     }
@@ -92,23 +92,14 @@ QRectF TileData::absoluteGeometry() const
                   m_relativeGeometry.height() * geom.height());
 }
 
-void TileData::setInternalLayoutDirection(TileData::LayoutDirection dir)
+void TileData::setlayoutDirection(TileData::LayoutDirection dir)
 {
-    m_internalLayoutDirection = dir;
-}
-
-TileData::LayoutDirection TileData::internalLayoutDirection() const
-{
-    return m_internalLayoutDirection;
+    m_layoutDirection = dir;
 }
 
 TileData::LayoutDirection TileData::layoutDirection() const
 {
-    if (isLayout() || !m_parentItem) {
-        return m_internalLayoutDirection;
-    } else {
-        return m_parentItem->layoutDirection();
-    }
+    return m_layoutDirection;
 }
 
 bool TileData::isLayout() const
@@ -167,7 +158,7 @@ void TileData::split(KWin::TileData::LayoutDirection newDirection)
     // If we are m_rootLayoutTile always create childrens, not siblings
     if (m_parentItem->parentItem() && (m_parentItem->m_childItems.count() < 2 || layoutDirection() == newDirection)) {
         // Add a new cell to the current layout
-        m_internalLayoutDirection = newDirection;
+        m_layoutDirection = newDirection;
         QRectF newGeo;
         if (newDirection == LayoutDirection::Horizontal) {
             m_relativeGeometry.setWidth(m_relativeGeometry.width() / 2);
@@ -185,7 +176,7 @@ void TileData::split(KWin::TileData::LayoutDirection newDirection)
         m_tiling->addTile(newGeo, layoutDirection(), m_parentItem);
     } else {
         // Do a new layout with 2 cells inside this one
-        m_internalLayoutDirection = newDirection;
+        m_layoutDirection = newDirection;
         auto newGeo = m_relativeGeometry;
         if (newDirection == LayoutDirection::Horizontal) {
             newGeo.setWidth(m_relativeGeometry.width() / 2);
@@ -263,6 +254,32 @@ TileData *TileData::parentItem()
     return m_parentItem;
 }
 
+TileData *TileData::descendantFromGeometry(const QRectF &geometry)
+{
+    if (absoluteGeometry() == geometry) {
+        return this;
+    }
+
+    TileData *tile = nullptr;
+    for (auto *tile : m_childItems) {
+        if (auto *matchingTile = tile->descendantFromGeometry(geometry)) {
+            return matchingTile;
+        }
+    }
+    return nullptr;
+}
+
+TileData *TileData::ancestorWithDirection(TileData::LayoutDirection dir)
+{
+    if (!m_parentItem) {
+        return nullptr;
+    } else if (m_parentItem->layoutDirection() == dir) {
+        return this;
+    } else {
+        return m_parentItem->ancestorWithDirection(dir);
+    }
+}
+
 int TileData::row() const
 {
     if (m_parentItem) {
@@ -295,6 +312,52 @@ CustomTiling::~CustomTiling()
 Output *CustomTiling::output() const
 {
     return m_output;
+}
+
+void CustomTiling::updateTileGeometry(const QRect &oldGeom, const QRect &newGeom)
+{
+    TileData *tile = m_rootTile->descendantFromGeometry(oldGeom);
+
+    if (!tile) {
+        return;
+    }
+
+    if (oldGeom.x() != newGeom.x()) {
+        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Horizontal);
+        if (tile) {
+            tile->resizeInLayout(newGeom.x() - oldGeom.x());
+        }
+    }
+    if (oldGeom.y() != newGeom.y()) {
+        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Vertical);
+        if (tile) {
+            tile->resizeInLayout(newGeom.y() - oldGeom.y());
+        }
+    }
+
+    if (oldGeom.width() != newGeom.width()) {
+        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Horizontal);
+        if (tile) {
+            auto *parentTile = tile->parentItem();
+            if (parentTile) {
+                if (parentTile->childCount() > tile->row() + 1) {
+                    parentTile->child(tile->row() + 1)->resizeInLayout(newGeom.width() - oldGeom.width());
+                }
+            }
+        }
+    }
+
+    if (oldGeom.height() != newGeom.height()) {
+        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Vertical);
+        if (tile) {
+            auto *parentTile = tile->parentItem();
+            if (parentTile) {
+                if (parentTile->childCount() > tile->row() + 1) {
+                    parentTile->child(tile->row() + 1)->resizeInLayout(newGeom.height() - oldGeom.height());
+                }
+            }
+        }
+    }
 }
 
 QHash<int, QByteArray> CustomTiling::roleNames() const
@@ -455,27 +518,27 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
             } else {
                 m_rootLayoutTile = createdTile;
             }
-        } else if (parentTile->internalLayoutDirection() == TileData::LayoutDirection::Horizontal) {
+        } else if (parentTile->layoutDirection() == TileData::LayoutDirection::Horizontal) {
             QRectF rect = availableArea;
             const auto width = obj.value(QStringLiteral("width"));
             if (width.isDouble()) {
                 rect.setWidth(qMin(width.toDouble(), availableArea.width()));
             }
             if (!rect.isEmpty()) {
-                createdTile = addTile(rect, parentTile->internalLayoutDirection(), parentTile);
+                createdTile = addTile(rect, parentTile->layoutDirection(), parentTile);
             }
 
-        } else if (parentTile->internalLayoutDirection() == TileData::LayoutDirection::Vertical) {
+        } else if (parentTile->layoutDirection() == TileData::LayoutDirection::Vertical) {
             QRectF rect = availableArea;
             const auto height = obj.value(QStringLiteral("height"));
             if (height.isDouble()) {
                 rect.setHeight(qMin(height.toDouble(), availableArea.height()));
             }
             if (!rect.isEmpty()) {
-                createdTile = addTile(rect, parentTile->internalLayoutDirection(), parentTile);
+                createdTile = addTile(rect, parentTile->layoutDirection(), parentTile);
             }
 
-        } else if (parentTile->internalLayoutDirection() == TileData::LayoutDirection::Floating) {
+        } else if (parentTile->layoutDirection() == TileData::LayoutDirection::Floating) {
             if (!m_rootFloatingTile) {
                 // This could happen only on malformed files
                 m_rootFloatingTile = addTile(QRectF(0, 0, 1, 1), TileData::LayoutDirection::Floating, m_rootTile);
@@ -489,7 +552,7 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
             }
 
             if (!rect.isEmpty()) {
-                createdTile = addTile(rect, parentTile->internalLayoutDirection(), m_rootFloatingTile);
+                createdTile = addTile(rect, parentTile->layoutDirection(), m_rootFloatingTile);
             }
         }
 
@@ -500,7 +563,7 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
             // Ignore arrays with only a single item in it
             if (arr.isArray() && arr.toArray().count() > 0) {
                 const TileData::LayoutDirection dir = strToLayoutDirection(direction.toString());
-                createdTile->setInternalLayoutDirection(dir);
+                createdTile->setlayoutDirection(dir);
                 if (dir == TileData::LayoutDirection::Horizontal
                     || dir == TileData::LayoutDirection::Vertical) {
                     parseTilingJSon(arr, createdTile->relativeGeometry(), createdTile);
@@ -517,15 +580,15 @@ TileData *CustomTiling::parseTilingJSon(const QJsonValue &val, const QRectF &ava
         for (auto it = arr.cbegin(); it != arr.cend(); it++) {
             if ((*it).isObject()) {
                 auto *tile = parseTilingJSon(*it, avail, parentTile);
-                if (tile && parentTile->internalLayoutDirection() == TileData::LayoutDirection::Horizontal) {
+                if (tile && parentTile->layoutDirection() == TileData::LayoutDirection::Horizontal) {
                     avail.setLeft(tile->relativeGeometry().right());
-                } else if (tile && parentTile->internalLayoutDirection() == TileData::LayoutDirection::Vertical) {
+                } else if (tile && parentTile->layoutDirection() == TileData::LayoutDirection::Vertical) {
                     avail.setTop(tile->relativeGeometry().bottom());
                 }
             }
         }
         //make sure the children fill exactly the parent, eventually enlarging the last
-        if (parentTile->internalLayoutDirection() != TileData::LayoutDirection::Floating
+        if (parentTile->layoutDirection() != TileData::LayoutDirection::Floating
             && parentTile->childCount() > 0) {
             auto *last = parentTile->child(parentTile->childCount() - 1);
             auto geom = last->relativeGeometry();
@@ -543,7 +606,7 @@ TileData *CustomTiling::addTile(const QRectF &relativeGeometry, TileData::Layout
     beginInsertRows(index, parentTile->childCount(), parentTile->childCount());
     TileData *tile = new TileData(this, parentTile);
     tile->setRelativeGeometry(relativeGeometry);
-    tile->setInternalLayoutDirection(layoutDirection);
+    tile->setlayoutDirection(layoutDirection);
     parentTile->appendChild(tile);
     endInsertRows();
     return tile;

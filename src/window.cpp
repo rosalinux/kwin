@@ -1644,7 +1644,8 @@ bool Window::startInteractiveMoveResize()
         }
     }
 
-    if (quickTileMode() != QuickTileMode(QuickTileFlag::None)) {
+    //TODO: properly manage the customtiling case
+    if (0 && quickTileMode() != QuickTileMode(QuickTileFlag::None)) {
         if (interactiveMoveResizeGravity() != Gravity::None) { // Cannot use isResize() yet
             // Exit quick tile mode when the user attempts to resize a tiled window
             updateQuickTileMode(QuickTileFlag::None); // Do so without restoring original geometry
@@ -2038,6 +2039,9 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
 
         if (moveResizeGeometry().size() != previousMoveResizeGeom.size()) {
             update = true;
+            if (quickTileMode() & QuickTileFlag::CustomZone) {
+                output()->customTiling()->updateTileGeometry(previousMoveResizeGeom, moveResizeGeometry());
+            }
         }
     } else if (isInteractiveMove()) {
         Q_ASSERT(gravity == Gravity::None);

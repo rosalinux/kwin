@@ -52,8 +52,8 @@ public:
     QRectF relativeGeometry() const;
     QRectF absoluteGeometry() const;
 
-    void setInternalLayoutDirection(TileData::LayoutDirection dir);
-    TileData::LayoutDirection internalLayoutDirection() const;
+    void setlayoutDirection(TileData::LayoutDirection dir);
+    // Own direction
     TileData::LayoutDirection layoutDirection() const;
 
     bool isLayout() const;
@@ -73,6 +73,10 @@ public:
     int childCount() const;
     int row() const;
     TileData *parentItem();
+    // Return a descendant that has the given geometry
+    TileData *descendantFromGeometry(const QRectF &geometry);
+    //Returns an ancestor which has the given layoutDirection
+    TileData *ancestorWithDirection(TileData::LayoutDirection dir);
 
     QVector<TileData *> descendants() const;
 
@@ -88,7 +92,7 @@ private:
 
     CustomTiling *m_tiling;
     QRectF m_relativeGeometry;
-    TileData::LayoutDirection m_internalLayoutDirection = LayoutDirection::Floating;
+    TileData::LayoutDirection m_layoutDirection = LayoutDirection::Floating;
     bool m_canBeRemoved = true;
 };
 
@@ -108,6 +112,8 @@ public:
     ~CustomTiling() override;
 
     Output *output() const;
+
+    void updateTileGeometry(const QRect &oldGeom, const QRect &newGeom);
 
     QList<QRectF> tileGeometries() const;
     TileData *rootTile() const;
