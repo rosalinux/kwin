@@ -59,6 +59,11 @@ public:
     bool isLayout() const;
     bool canBeRemoved() const;
 
+    int leftPadding() const;
+    int topPadding() const;
+    int rightPadding() const;
+    int bottomPadding() const;
+
     void appendChild(TileData *child);
     void removeChild(TileData *child);
 
@@ -93,6 +98,10 @@ private:
     CustomTiling *m_tiling;
     QRectF m_relativeGeometry;
     TileData::LayoutDirection m_layoutDirection = LayoutDirection::Floating;
+    int m_leftPadding = 4;
+    int m_topPadding = 4;
+    int m_rightPadding = 4;
+    int m_bottomPadding = 4;
     bool m_canBeRemoved = true;
 };
 

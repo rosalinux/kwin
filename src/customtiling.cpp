@@ -86,10 +86,10 @@ QRectF TileData::relativeGeometry() const
 QRectF TileData::absoluteGeometry() const
 {
     const QRect geom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
-    return QRectF(geom.x() + m_relativeGeometry.x() * geom.width(),
-                  geom.y() + m_relativeGeometry.y() * geom.height(),
-                  m_relativeGeometry.width() * geom.width(),
-                  m_relativeGeometry.height() * geom.height());
+    return QRectF(qRound(geom.x() + m_relativeGeometry.x() * geom.width() + m_leftPadding),
+                  qRound(geom.y() + m_relativeGeometry.y() * geom.height() + m_topPadding),
+                  qRound(m_relativeGeometry.width() * geom.width() - m_leftPadding - m_rightPadding),
+                  qRound(m_relativeGeometry.height() * geom.height() - m_topPadding - m_bottomPadding));
 }
 
 void TileData::setlayoutDirection(TileData::LayoutDirection dir)
@@ -112,6 +112,26 @@ bool TileData::canBeRemoved() const
 {
     // The root tile and its two children can *never* be removed
     return m_parentItem && m_parentItem->parentItem();
+}
+
+int TileData::leftPadding() const
+{
+    return m_leftPadding;
+}
+
+int TileData::topPadding() const
+{
+    return m_topPadding;
+}
+
+int TileData::rightPadding() const
+{
+    return m_rightPadding;
+}
+
+int TileData::bottomPadding() const
+{
+    return m_bottomPadding;
 }
 
 void TileData::resizeInLayout(qreal delta)
@@ -322,6 +342,16 @@ void CustomTiling::updateTileGeometry(const QRect &oldGeom, const QRect &newGeom
         return;
     }
 
+    if (tile->layoutDirection() == TileData::LayoutDirection::Floating) {
+        const QRectF wg = workspace()->clientArea(MaximizeArea, m_output, VirtualDesktopManager::self()->currentDesktop());
+        //TODO: consider padding
+        tile->setRelativeGeometry(QRectF((newGeom.x() - tile->leftPadding()) / wg.width(),
+                                         (newGeom.y() - tile->topPadding()) / wg.height(),
+                                         (newGeom.width() + tile->leftPadding() + tile->rightPadding()) / wg.width(),
+                                         (newGeom.height() + tile->topPadding() + tile->bottomPadding()) / wg.height()));
+        return;
+    }
+
     if (oldGeom.x() != newGeom.x()) {
         tile = tile->ancestorWithDirection(TileData::LayoutDirection::Horizontal);
         if (tile) {
@@ -346,7 +376,6 @@ void CustomTiling::updateTileGeometry(const QRect &oldGeom, const QRect &newGeom
             }
         }
     }
-
     if (oldGeom.height() != newGeom.height()) {
         tile = tile->ancestorWithDirection(TileData::LayoutDirection::Vertical);
         if (tile) {

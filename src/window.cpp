@@ -1645,7 +1645,7 @@ bool Window::startInteractiveMoveResize()
     }
 
     //TODO: properly manage the customtiling case
-    if (0 && quickTileMode() != QuickTileMode(QuickTileFlag::None)) {
+    if (quickTileMode() != QuickTileMode(QuickTileFlag::None) && quickTileMode() != QuickTileMode(QuickTileFlag::CustomZone)) {
         if (interactiveMoveResizeGravity() != Gravity::None) { // Cannot use isResize() yet
             // Exit quick tile mode when the user attempts to resize a tiled window
             updateQuickTileMode(QuickTileFlag::None); // Do so without restoring original geometry
