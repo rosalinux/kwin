@@ -60,7 +60,7 @@ XToWlDrag::XToWlDrag(X11Source *source)
     connect(DataBridge::self()->dnd(), &Dnd::transferFinished, this, [this](xcb_timestamp_t eventTime) {
         // we use this mechanism, because the finished call is not
         // reliable done by Wayland clients
-        auto it = std::find_if(m_dataRequests.begin(), m_dataRequests.end(), [eventTime](const QPair<xcb_timestamp_t, bool> &req) {
+        auto it = std::ranges::find_if(m_dataRequests, [eventTime](const QPair<xcb_timestamp_t, bool> &req) {
             return req.first == eventTime && req.second == false;
         });
         if (it == m_dataRequests.end()) {
@@ -241,10 +241,9 @@ bool XToWlDrag::checkForFinished()
         // need to wait for first data request
         return false;
     }
-    const bool transfersFinished = std::all_of(m_dataRequests.begin(), m_dataRequests.end(),
-                                               [](QPair<xcb_timestamp_t, bool> req) {
-                                                   return req.second;
-                                               });
+    const bool transfersFinished = std::ranges::all_of(m_dataRequests, [](QPair<xcb_timestamp_t, bool> req) {
+        return req.second;
+    });
     if (transfersFinished) {
         m_visit->sendFinished();
         Q_EMIT finish(this);
@@ -326,10 +325,9 @@ bool WlVisit::handleClientMessage(xcb_client_message_event_t *event)
 
 static bool hasMimeName(const Mimes &mimes, const QString &name)
 {
-    return std::any_of(mimes.begin(), mimes.end(),
-                       [name](const Mime &m) {
-                           return m.first == name;
-                       });
+    return std::ranges::any_of(mimes, [name](const Mime &m) {
+        return m.first == name;
+    });
 }
 
 bool WlVisit::handleEnter(xcb_client_message_event_t *event)

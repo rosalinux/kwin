@@ -268,10 +268,9 @@ void X11WindowedBackend::initXInput()
 
 X11WindowedOutput *X11WindowedBackend::findOutput(xcb_window_t window) const
 {
-    auto it = std::find_if(m_outputs.constBegin(), m_outputs.constEnd(),
-                           [window](X11WindowedOutput *output) {
-                               return output->window() == window;
-                           });
+    auto it = std::ranges::find_if(m_outputs, [window](X11WindowedOutput *output) {
+        return output->window() == window;
+    });
     if (it != m_outputs.constEnd()) {
         return *it;
     }
@@ -487,10 +486,9 @@ void X11WindowedBackend::updateWindowTitle()
 
 void X11WindowedBackend::handleClientMessage(xcb_client_message_event_t *event)
 {
-    auto it = std::find_if(m_outputs.begin(), m_outputs.end(),
-                           [event](X11WindowedOutput *output) {
-                               return output->window() == event->window;
-                           });
+    auto it = std::ranges::find_if(m_outputs, [event](X11WindowedOutput *output) {
+        return output->window() == event->window;
+    });
     if (it == m_outputs.end()) {
         return;
     }

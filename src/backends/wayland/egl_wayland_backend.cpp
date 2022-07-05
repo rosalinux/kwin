@@ -223,7 +223,7 @@ EglWaylandBackend::EglWaylandBackend(WaylandBackend *b)
 
     connect(m_backend, &WaylandBackend::outputAdded, this, &EglWaylandBackend::createEglWaylandOutput);
     connect(m_backend, &WaylandBackend::outputRemoved, this, [this](Output *output) {
-        auto it = std::find_if(m_outputs.begin(), m_outputs.end(), [output](const auto &o) {
+        auto it = std::ranges::find_if(m_outputs, [output](const auto &o) {
             return o->m_waylandOutput == output;
         });
         if (it == m_outputs.end()) {

@@ -161,7 +161,7 @@ void Primary::x11OffersChanged(const QStringList &added, const QStringList &remo
     if (!offers.isEmpty()) {
         QStringList mimeTypes;
         mimeTypes.reserve(offers.size());
-        std::transform(offers.begin(), offers.end(), std::back_inserter(mimeTypes), [](const Mimes::value_type &pair) {
+        std::ranges::transform(offers, std::back_inserter(mimeTypes), [](const Mimes::value_type &pair) {
             return pair.first;
         });
         auto newSelection = std::make_unique<XwlDataSource>();

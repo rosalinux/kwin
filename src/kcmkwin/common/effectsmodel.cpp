@@ -32,6 +32,7 @@
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QVBoxLayout>
+#include <ranges>
 
 namespace KWin
 {
@@ -398,16 +399,15 @@ void EffectsModel::load(LoadOptions options)
     loadJavascriptEffects(kwinConfig);
     loadPluginEffects(kwinConfig);
 
-    std::sort(m_pendingEffects.begin(), m_pendingEffects.end(),
-              [](const EffectData &a, const EffectData &b) {
-                  if (a.category == b.category) {
-                      if (a.exclusiveGroup == b.exclusiveGroup) {
-                          return a.name < b.name;
-                      }
-                      return a.exclusiveGroup < b.exclusiveGroup;
-                  }
-                  return a.category < b.category;
-              });
+    std::ranges::sort(m_pendingEffects, [](const EffectData &a, const EffectData &b) {
+        if (a.category == b.category) {
+            if (a.exclusiveGroup == b.exclusiveGroup) {
+                return a.name < b.name;
+            }
+            return a.exclusiveGroup < b.exclusiveGroup;
+        }
+        return a.category < b.category;
+    });
 
     auto commit = [this, options] {
         if (options == LoadOptions::KeepDirty) {
@@ -415,10 +415,9 @@ void EffectsModel::load(LoadOptions options)
                 if (!oldEffect.changed) {
                     continue;
                 }
-                auto effectIt = std::find_if(m_pendingEffects.begin(), m_pendingEffects.end(),
-                                             [oldEffect](const EffectData &data) {
-                                                 return data.serviceName == oldEffect.serviceName;
-                                             });
+                auto effectIt = std::ranges::find_if(m_pendingEffects, [oldEffect](const EffectData &data) {
+                    return data.serviceName == oldEffect.serviceName;
+                });
                 if (effectIt == m_pendingEffects.end()) {
                     continue;
                 }
@@ -471,10 +470,9 @@ void EffectsModel::load(LoadOptions options)
                 const bool supported = supportedValues.at(i);
                 const QString effectName = effectNames.at(i);
 
-                auto it = std::find_if(m_pendingEffects.begin(), m_pendingEffects.end(),
-                                       [effectName](const EffectData &data) {
-                                           return data.serviceName == effectName;
-                                       });
+                auto it = std::ranges::find_if(m_pendingEffects, [effectName](const EffectData &data) {
+                    return data.serviceName == effectName;
+                });
                 if (it == m_pendingEffects.end()) {
                     continue;
                 }
@@ -561,7 +559,7 @@ void EffectsModel::defaults()
 
 bool EffectsModel::isDefaults() const
 {
-    return std::all_of(m_effects.constBegin(), m_effects.constEnd(), [](const EffectData &effect) {
+    return std::ranges::all_of(m_effects, [](const EffectData &effect) {
         if (effect.enabledByDefaultFunction && effect.status != Status::EnabledUndeterminded) {
             return false;
         }
@@ -574,18 +572,16 @@ bool EffectsModel::isDefaults() const
 
 bool EffectsModel::needsSave() const
 {
-    return std::any_of(m_effects.constBegin(), m_effects.constEnd(),
-                       [](const EffectData &data) {
-                           return data.changed;
-                       });
+    return std::ranges::any_of(m_effects, [](const EffectData &data) {
+        return data.changed;
+    });
 }
 
 QModelIndex EffectsModel::findByPluginId(const QString &pluginId) const
 {
-    auto it = std::find_if(m_effects.constBegin(), m_effects.constEnd(),
-                           [pluginId](const EffectData &data) {
-                               return data.serviceName == pluginId;
-                           });
+    auto it = std::ranges::find_if(m_effects, [pluginId](const EffectData &data) {
+        return data.serviceName == pluginId;
+    });
     if (it == m_effects.constEnd()) {
         return {};
     }

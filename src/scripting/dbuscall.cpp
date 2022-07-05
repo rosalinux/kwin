@@ -38,7 +38,7 @@ void DBusCall::call()
             return;
         }
         QVariantList reply = watcher->reply().arguments();
-        std::for_each(reply.begin(), reply.end(), [](QVariant &variant) {
+        std::ranges::for_each(reply, [](QVariant &variant) {
             variant = dbusToVariant(variant);
         });
         Q_EMIT finished(reply);

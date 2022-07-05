@@ -479,12 +479,9 @@ DBusDesktopDataVector VirtualDesktopManagerDBusInterface::desktops() const
     DBusDesktopDataVector desktopVect;
     desktopVect.reserve(m_manager->count());
 
-    std::transform(desks.constBegin(), desks.constEnd(),
-                   std::back_inserter(desktopVect),
-                   [](const VirtualDesktop *vd) {
-                       return DBusDesktopDataStruct{.position = vd->x11DesktopNumber() - 1, .id = vd->id(), .name = vd->name()};
-                   });
-
+    std::ranges::transform(desks, std::back_inserter(desktopVect), [](const VirtualDesktop *vd) {
+        return DBusDesktopDataStruct{.position = vd->x11DesktopNumber() - 1, .id = vd->id(), .name = vd->name()};
+    });
     return desktopVect;
 }
 

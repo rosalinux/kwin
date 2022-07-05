@@ -125,7 +125,7 @@ void PasteClient::setupRegistry(Registry *registry)
                 return;
             }
             const auto &mimeTypes = dataOffer->offeredMimeTypes();
-            auto it = std::find_if(mimeTypes.constBegin(), mimeTypes.constEnd(), [](const QMimeType &type) {
+            auto it = std::ranges::find_if(std::as_const(mimeTypes), [](const QMimeType &type) {
                 return type.inherits(QStringLiteral("text/plain"));
             });
             if (it == mimeTypes.constEnd()) {

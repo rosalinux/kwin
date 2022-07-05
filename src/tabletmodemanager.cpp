@@ -96,12 +96,12 @@ public:
     void check()
     {
         const auto devices = input()->devices();
-        const bool hasTouch = std::any_of(devices.constBegin(), devices.constEnd(), [](InputDevice *device) {
+        const bool hasTouch = std::ranges::any_of(devices, [](InputDevice *device) {
             return device->isTouch() && !shouldIgnoreDevice(device);
         });
         m_parent->setTabletModeAvailable(hasTouch);
 
-        const bool hasPointer = std::any_of(devices.constBegin(), devices.constEnd(), [](InputDevice *device) {
+        const bool hasPointer = std::ranges::any_of(devices, [](InputDevice *device) {
             return device->isPointer() && !shouldIgnoreDevice(device);
         });
         m_parent->setIsTablet(hasTouch && !hasPointer);

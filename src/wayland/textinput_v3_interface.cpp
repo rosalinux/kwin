@@ -283,7 +283,7 @@ bool TextInputV3InterfacePrivate::isEnabled() const
         return false;
     }
     const auto clientResources = textInputsForClient(surface->client());
-    return std::any_of(clientResources.begin(), clientResources.end(), [this](Resource *resource) {
+    return std::ranges::any_of(clientResources, [this](Resource *resource) {
         return enabled[resource];
     });
 }

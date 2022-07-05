@@ -881,7 +881,7 @@ WaylandOutput *WaylandBackend::getOutputAt(const QPointF &globalPosition)
     auto checkPosition = [pos](WaylandOutput *output) {
         return output->geometry().contains(pos);
     };
-    auto it = std::find_if(m_outputs.constBegin(), m_outputs.constEnd(), checkPosition);
+    auto it = std::ranges::find_if(m_outputs, checkPosition);
     return it == m_outputs.constEnd() ? nullptr : *it;
 }
 

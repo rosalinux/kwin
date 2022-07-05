@@ -331,10 +331,9 @@ int main(int argc, char *argv[])
 
     const auto availablePlugins = KPluginMetaData::findPlugins(QStringLiteral("org.kde.kwin.waylandbackends"));
     auto hasPlugin = [&availablePlugins](const QString &name) {
-        return std::any_of(availablePlugins.begin(), availablePlugins.end(),
-                           [name](const KPluginMetaData &plugin) {
-                               return plugin.pluginId() == name;
-                           });
+        return std::ranges::any_of(availablePlugins, [name](const KPluginMetaData &plugin) {
+            return plugin.pluginId() == name;
+        });
     };
     const bool hasSizeOption = hasPlugin(KWin::s_x11Plugin) || hasPlugin(KWin::s_virtualPlugin);
     const bool hasOutputCountOption = hasPlugin(KWin::s_x11Plugin);
@@ -546,10 +545,9 @@ int main(int argc, char *argv[])
         pluginName = KWin::automaticBackendSelection();
     }
 
-    auto pluginIt = std::find_if(availablePlugins.begin(), availablePlugins.end(),
-                                 [&pluginName](const KPluginMetaData &plugin) {
-                                     return plugin.pluginId() == pluginName;
-                                 });
+    auto pluginIt = std::ranges::find_if(availablePlugins, [&pluginName](const KPluginMetaData &plugin) {
+        return plugin.pluginId() == pluginName;
+    });
     if (pluginIt == availablePlugins.end()) {
         std::cerr << "FATAL ERROR: could not find a backend" << std::endl;
         return 1;

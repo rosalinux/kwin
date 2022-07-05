@@ -125,7 +125,7 @@ void RuleBookSettings::usrRead()
 
 bool RuleBookSettings::usrIsSaveNeeded() const
 {
-    return isSaveNeeded() || std::any_of(m_list.cbegin(), m_list.cend(), [](const auto &settings) {
+    return isSaveNeeded() || std::ranges::any_of(m_list, [](const auto &settings) {
                return settings->isSaveNeeded();
            });
 }

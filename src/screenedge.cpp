@@ -167,10 +167,9 @@ void Edge::reserve(QObject *object, const char *slot)
 
 void Edge::reserveTouchCallBack(QAction *action, TouchCallback::CallbackFunction callback)
 {
-    if (auto itr = std::find_if(m_touchCallbacks.constBegin(), m_touchCallbacks.constEnd(), [action](const TouchCallback &c) {
+    if (std::ranges::any_of(std::as_const(m_touchCallbacks), [action](const TouchCallback &c) {
             return c.touchUpAction() == action;
-        });
-        itr != m_touchCallbacks.constEnd()) {
+        })) {
         return;
     }
     reserveTouchCallBack(TouchCallback(action, callback));
@@ -178,10 +177,9 @@ void Edge::reserveTouchCallBack(QAction *action, TouchCallback::CallbackFunction
 
 void Edge::reserveTouchCallBack(const TouchCallback &callback)
 {
-    if (auto itr = std::find_if(m_touchCallbacks.constBegin(), m_touchCallbacks.constEnd(), [callback](const TouchCallback &c) {
+    if (std::ranges::any_of(std::as_const(m_touchCallbacks), [callback](const TouchCallback &c) {
             return c.touchUpAction() == callback.touchUpAction();
-        });
-        itr != m_touchCallbacks.constEnd()) {
+        })) {
         return;
     }
     connect(callback.touchUpAction(), &QAction::destroyed, this, [this, callback]() {
@@ -193,7 +191,7 @@ void Edge::reserveTouchCallBack(const TouchCallback &callback)
 
 void Edge::unreserveTouchCallBack(QAction *action)
 {
-    auto it = std::find_if(m_touchCallbacks.begin(), m_touchCallbacks.end(), [action](const TouchCallback &c) {
+    auto it = std::ranges::find_if(m_touchCallbacks, [action](const TouchCallback &c) {
         return c.touchUpAction() == action;
     });
     if (it != m_touchCallbacks.end()) {

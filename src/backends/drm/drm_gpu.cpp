@@ -254,7 +254,7 @@ bool DrmGpu::updateOutputs()
     QVector<DrmConnector *> removedConnectors = m_connectors;
     for (int i = 0; i < resources->count_connectors; ++i) {
         const uint32_t currentConnector = resources->connectors[i];
-        auto it = std::find_if(m_connectors.constBegin(), m_connectors.constEnd(), [currentConnector](DrmConnector *c) {
+        auto it = std::ranges::find_if(std::as_const(m_connectors), [currentConnector](DrmConnector *c) {
             return c->id() == currentConnector;
         });
         DrmConnector *conn = it == m_connectors.constEnd() ? nullptr : *it;
@@ -374,7 +374,7 @@ DrmPipeline::Error DrmGpu::checkCrtcAssignment(QVector<DrmConnector *> connector
     if (m_atomicModeSetting) {
         // try the crtc that this connector is already connected to first
         uint32_t id = connector->getProp(DrmConnector::PropertyIndex::CrtcId)->pending();
-        auto it = std::find_if(crtcs.begin(), crtcs.end(), [id](const auto &crtc) {
+        auto it = std::ranges::find_if(crtcs, [id](const auto &crtc) {
             return id == crtc->id();
         });
         if (it != crtcs.end()) {
@@ -424,7 +424,7 @@ DrmPipeline::Error DrmGpu::testPendingConfiguration()
     }
     if (m_atomicModeSetting) {
         // sort outputs by being already connected (to any CRTC) so that already working outputs get preferred
-        std::sort(connectors.begin(), connectors.end(), [](auto c1, auto c2) {
+        std::ranges::sort(connectors, [](auto c1, auto c2) {
             return c1->getProp(DrmConnector::PropertyIndex::CrtcId)->current() > c2->getProp(DrmConnector::PropertyIndex::CrtcId)->current();
         });
     }
@@ -448,7 +448,7 @@ DrmPipeline::Error DrmGpu::testPendingConfiguration()
 DrmPipeline::Error DrmGpu::testPipelines()
 {
     QVector<DrmPipeline *> inactivePipelines;
-    std::copy_if(m_pipelines.constBegin(), m_pipelines.constEnd(), std::back_inserter(inactivePipelines), [](const auto pipeline) {
+    std::ranges::copy_if(std::as_const(m_pipelines), std::back_inserter(inactivePipelines), [](const auto pipeline) {
         return pipeline->enabled() && !pipeline->active();
     });
     DrmPipeline::Error test = DrmPipeline::commitPipelines(m_pipelines, DrmPipeline::CommitMode::Test, unusedObjects());
@@ -468,7 +468,7 @@ DrmPipeline::Error DrmGpu::testPipelines()
 
 DrmOutput *DrmGpu::findOutput(quint32 connector)
 {
-    auto it = std::find_if(m_drmOutputs.constBegin(), m_drmOutputs.constEnd(), [connector](DrmOutput *o) {
+    auto it = std::ranges::find_if(std::as_const(m_drmOutputs), [connector](DrmOutput *o) {
         return o->connector()->id() == connector;
     });
     if (it != m_drmOutputs.constEnd()) {
@@ -481,7 +481,7 @@ void DrmGpu::waitIdle()
 {
     m_socketNotifier->setEnabled(false);
     while (true) {
-        const bool idle = std::all_of(m_drmOutputs.constBegin(), m_drmOutputs.constEnd(), [](DrmOutput *output) {
+        const bool idle = std::ranges::all_of(std::as_const(m_drmOutputs), [](DrmOutput *output) {
             return !output->pipeline()->pageflipPending();
         });
         if (idle) {
@@ -555,7 +555,7 @@ void DrmGpu::pageFlipHandler(int fd, unsigned int sequence, unsigned int sec, un
         timestamp = std::chrono::steady_clock::now().time_since_epoch();
     }
     const auto pipelines = gpu->pipelines();
-    auto it = std::find_if(pipelines.begin(), pipelines.end(), [crtc_id](const auto &pipeline) {
+    auto it = std::ranges::find_if(pipelines, [crtc_id](const auto &pipeline) {
         return pipeline->currentCrtc() && pipeline->currentCrtc()->id() == crtc_id;
     });
     if (it == pipelines.end()) {
@@ -617,7 +617,7 @@ void DrmGpu::removeVirtualOutput(DrmVirtualOutput *output)
 
 DrmLeaseOutput *DrmGpu::findLeaseOutput(quint32 connector)
 {
-    auto it = std::find_if(m_leaseOutputs.constBegin(), m_leaseOutputs.constEnd(), [connector](DrmLeaseOutput *o) {
+    auto it = std::ranges::find_if(std::as_const(m_leaseOutputs), [connector](DrmLeaseOutput *o) {
         return o->pipeline()->connector()->id() == connector;
     });
     if (it != m_leaseOutputs.constEnd()) {
@@ -739,10 +739,10 @@ bool DrmGpu::isNVidia() const
 
 bool DrmGpu::needsModeset() const
 {
-    return std::any_of(m_pipelines.constBegin(), m_pipelines.constEnd(), [](const auto &pipeline) {
+    return std::ranges::any_of(m_pipelines, [](const auto &pipeline) {
                return pipeline->needsModeset();
            })
-        || std::any_of(m_allObjects.constBegin(), m_allObjects.constEnd(), [](const auto &object) {
+        || std::ranges::any_of(m_allObjects, [](const auto &object) {
                return object->needsModeset();
            });
 }
@@ -755,7 +755,7 @@ bool DrmGpu::maybeModeset()
             pipelines.removeOne(output->pipeline());
         }
     }
-    bool presentPendingForAll = std::all_of(pipelines.constBegin(), pipelines.constEnd(), [](const auto &pipeline) {
+    bool presentPendingForAll = std::ranges::all_of(std::as_const(pipelines), [](const auto &pipeline) {
         return pipeline->modesetPresentPending() || !pipeline->active();
     });
     if (!presentPendingForAll) {

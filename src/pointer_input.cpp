@@ -171,7 +171,7 @@ void PointerInputRedirection::init()
         connect(window, &Window::clientFinishUserMovedResized, this, &PointerInputRedirection::update);
     };
     const auto clients = workspace()->allClientList();
-    std::for_each(clients.begin(), clients.end(), setupMoveResizeConnection);
+    std::ranges::for_each(clients, setupMoveResizeConnection);
     connect(workspace(), &Workspace::windowAdded, this, setupMoveResizeConnection);
 
     // warp the cursor to center of screen containing the workspace center
@@ -956,7 +956,7 @@ CursorImage::CursorImage(PointerInputRedirection *parent)
         connect(window, &Window::moveResizeCursorChanged, this, &CursorImage::updateMoveResize);
     };
     const auto clients = workspace()->allClientList();
-    std::for_each(clients.begin(), clients.end(), setupMoveResizeConnection);
+    std::ranges::for_each(clients, setupMoveResizeConnection);
     connect(workspace(), &Workspace::windowAdded, this, setupMoveResizeConnection);
     loadThemeCursor(Qt::ArrowCursor, &m_fallbackCursor);
 

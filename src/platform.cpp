@@ -142,7 +142,7 @@ void Platform::requestOutputsChange(KWaylandServer::OutputConfigurationV2Interfa
     }
 
     const auto allOutputs = outputs();
-    bool allDisabled = !std::any_of(allOutputs.begin(), allOutputs.end(), [&cfg](const auto &output) {
+    bool allDisabled = std::ranges::none_of(allOutputs, [&cfg](const auto &output) {
         return cfg.changeSet(output)->enabled;
     });
     if (allDisabled) {
@@ -199,10 +199,9 @@ Output *Platform::findOutput(int screenId) const
 Output *Platform::findOutput(const QUuid &uuid) const
 {
     const auto outs = outputs();
-    auto it = std::find_if(outs.constBegin(), outs.constEnd(),
-                           [uuid](Output *output) {
-                               return output->uuid() == uuid;
-                           });
+    auto it = std::ranges::find_if(outs, [uuid](Output *output) {
+        return output->uuid() == uuid;
+    });
     if (it != outs.constEnd()) {
         return *it;
     }

@@ -1825,10 +1825,10 @@ Window *Workspace::findToplevel(const QUuid &internalId) const
 
 void Workspace::forEachToplevel(std::function<void(Window *)> func)
 {
-    std::for_each(m_allClients.constBegin(), m_allClients.constEnd(), func);
-    std::for_each(deleted.constBegin(), deleted.constEnd(), func);
-    std::for_each(m_unmanaged.constBegin(), m_unmanaged.constEnd(), func);
-    std::for_each(m_internalWindows.constBegin(), m_internalWindows.constEnd(), func);
+    std::ranges::for_each(std::as_const(m_allClients), func);
+    std::ranges::for_each(std::as_const(deleted), func);
+    std::ranges::for_each(std::as_const(m_unmanaged), func);
+    std::ranges::for_each(std::as_const(m_internalWindows), func);
 }
 
 bool Workspace::hasWindow(const Window *c)
@@ -1841,8 +1841,8 @@ bool Workspace::hasWindow(const Window *c)
 
 void Workspace::forEachAbstractClient(std::function<void(Window *)> func)
 {
-    std::for_each(m_allClients.constBegin(), m_allClients.constEnd(), func);
-    std::for_each(m_internalWindows.constBegin(), m_internalWindows.constEnd(), func);
+    std::ranges::for_each(std::as_const(m_allClients), func);
+    std::ranges::for_each(std::as_const(m_internalWindows), func);
 }
 
 Window *Workspace::findInternal(QWindow *w) const

@@ -200,7 +200,7 @@ public:
     template<class UnaryPredicate>
     void processFilters(UnaryPredicate function)
     {
-        std::any_of(m_filters.constBegin(), m_filters.constEnd(), function);
+        std::ranges::any_of(std::as_const(m_filters), function);
     }
 
     /**
@@ -219,7 +219,7 @@ public:
     template<class UnaryFunction>
     void processSpies(UnaryFunction function)
     {
-        std::for_each(m_spies.constBegin(), m_spies.constEnd(), function);
+        std::ranges::for_each(std::as_const(m_spies), function);
     }
 
     KeyboardInputRedirection *keyboard() const

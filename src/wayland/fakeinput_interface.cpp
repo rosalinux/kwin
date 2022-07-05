@@ -79,7 +79,7 @@ void FakeInputInterfacePrivate::org_kde_kwin_fake_input_destroy_resource(Resourc
 
 FakeInputDevice *FakeInputInterfacePrivate::device(wl_resource *r)
 {
-    auto it = std::find_if(devices.constBegin(), devices.constEnd(), [r](FakeInputDevice *device) {
+    auto it = std::ranges::find_if(std::as_const(devices), [r](FakeInputDevice *device) {
         return device->resource() == r;
     });
     if (it != devices.constEnd()) {

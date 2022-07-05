@@ -182,7 +182,7 @@ QVector<SeatInterface *> Display::seats() const
 ClientConnection *Display::getConnection(wl_client *client)
 {
     Q_ASSERT(client);
-    auto it = std::find_if(d->clients.constBegin(), d->clients.constEnd(), [client](ClientConnection *c) {
+    auto it = std::ranges::find_if(std::as_const(d->clients), [client](ClientConnection *c) {
         return c->client() == client;
     });
     if (it != d->clients.constEnd()) {

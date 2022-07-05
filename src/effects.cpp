@@ -1177,11 +1177,9 @@ EffectWindowList EffectsHandlerImpl::currentTabBoxWindowList() const
     const auto clients = TabBox::TabBox::self()->currentClientList();
     EffectWindowList ret;
     ret.reserve(clients.size());
-    std::transform(std::cbegin(clients), std::cend(clients),
-                   std::back_inserter(ret),
-                   [](auto client) {
-                       return client->effectWindow();
-                   });
+    std::ranges::transform(std::as_const(clients), std::back_inserter(ret), [](auto client) {
+        return client->effectWindow();
+    });
     return ret;
 #else
     return EffectWindowList();
@@ -1413,11 +1411,9 @@ QStringList EffectsHandlerImpl::loadedEffects() const
 {
     QStringList listModules;
     listModules.reserve(loaded_effects.count());
-    std::transform(loaded_effects.constBegin(), loaded_effects.constEnd(),
-                   std::back_inserter(listModules),
-                   [](const EffectPair &pair) {
-                       return pair.first;
-                   });
+    std::ranges::transform(std::as_const(loaded_effects), std::back_inserter(listModules), [](const EffectPair &pair) {
+        return pair.first;
+    });
     return listModules;
 }
 
@@ -1436,10 +1432,9 @@ bool EffectsHandlerImpl::loadEffect(const QString &name)
 
 void EffectsHandlerImpl::unloadEffect(const QString &name)
 {
-    auto it = std::find_if(effect_order.begin(), effect_order.end(),
-                           [name](EffectPair &pair) {
-                               return pair.first == name;
-                           });
+    auto it = std::ranges::find_if(effect_order, [name](EffectPair &pair) {
+        return pair.first == name;
+    });
     if (it == effect_order.end()) {
         qCDebug(KWIN_CORE) << "EffectsHandler::unloadEffect : Effect not loaded :" << name;
         return;
@@ -1489,11 +1484,9 @@ void EffectsHandlerImpl::reconfigureEffect(const QString &name)
 
 bool EffectsHandlerImpl::isEffectLoaded(const QString &name) const
 {
-    auto it = std::find_if(loaded_effects.constBegin(), loaded_effects.constEnd(),
-                           [&name](const EffectPair &pair) {
-                               return pair.first == name;
-                           });
-    return it != loaded_effects.constEnd();
+    return std::ranges::any_of(loaded_effects, [&name](const EffectPair &pair) {
+        return pair.first == name;
+    });
 }
 
 bool EffectsHandlerImpl::isEffectSupported(const QString &name)
@@ -1513,11 +1506,9 @@ QList<bool> EffectsHandlerImpl::areEffectsSupported(const QStringList &names)
 {
     QList<bool> retList;
     retList.reserve(names.count());
-    std::transform(names.constBegin(), names.constEnd(),
-                   std::back_inserter(retList),
-                   [this](const QString &name) {
-                       return isEffectSupported(name);
-                   });
+    std::ranges::transform(names, std::back_inserter(retList), [this](const QString &name) {
+        return isEffectSupported(name);
+    });
     return retList;
 }
 
@@ -1542,8 +1533,7 @@ void EffectsHandlerImpl::effectsChanged()
     m_activeEffects.clear(); // it's possible to have a reconfigure and a quad rebuild between two paint cycles - bug #308201
 
     loaded_effects.reserve(effect_order.count());
-    std::copy(effect_order.constBegin(), effect_order.constEnd(),
-              std::back_inserter(loaded_effects));
+    std::ranges::copy(std::as_const(effect_order), std::back_inserter(loaded_effects));
 
     m_activeEffects.reserve(loaded_effects.count());
 }
@@ -1563,7 +1553,7 @@ QStringList EffectsHandlerImpl::activeEffects() const
 
 bool EffectsHandlerImpl::blocksDirectScanout() const
 {
-    return std::any_of(m_activeEffects.constBegin(), m_activeEffects.constEnd(), [](const Effect *effect) {
+    return std::ranges::any_of(m_activeEffects, [](const Effect *effect) {
         return effect->blocksDirectScanout();
     });
 }
@@ -1600,10 +1590,9 @@ QVariant EffectsHandlerImpl::kwinOption(KWinOption kwopt)
 
 QString EffectsHandlerImpl::supportInformation(const QString &name) const
 {
-    auto it = std::find_if(loaded_effects.constBegin(), loaded_effects.constEnd(),
-                           [name](const EffectPair &pair) {
-                               return pair.first == name;
-                           });
+    auto it = std::ranges::find_if(loaded_effects, [name](const EffectPair &pair) {
+        return pair.first == name;
+    });
     if (it == loaded_effects.constEnd()) {
         return QString();
     }
@@ -1727,7 +1716,7 @@ KSharedConfigPtr EffectsHandlerImpl::inputConfig() const
 
 Effect *EffectsHandlerImpl::findEffect(const QString &name) const
 {
-    auto it = std::find_if(loaded_effects.constBegin(), loaded_effects.constEnd(), [name](const EffectPair &pair) {
+    auto it = std::ranges::find_if(loaded_effects, [name](const EffectPair &pair) {
         return pair.first == name;
     });
     if (it == loaded_effects.constEnd()) {
@@ -2168,11 +2157,9 @@ EffectWindowList getMainWindows(T *c)
     const auto mainwindows = c->mainWindows();
     EffectWindowList ret;
     ret.reserve(mainwindows.size());
-    std::transform(std::cbegin(mainwindows), std::cend(mainwindows),
-                   std::back_inserter(ret),
-                   [](auto window) {
-                       return window->effectWindow();
-                   });
+    std::ranges::transform(std::as_const(mainwindows), std::back_inserter(ret), [](auto window) {
+        return window->effectWindow();
+    });
     return ret;
 }
 
@@ -2264,7 +2251,7 @@ EffectWindowList EffectWindowGroupImpl::members() const
     const auto memberList = group->members();
     EffectWindowList ret;
     ret.reserve(memberList.size());
-    std::transform(std::cbegin(memberList), std::cend(memberList), std::back_inserter(ret), [](auto window) {
+    std::ranges::transform(std::as_const(memberList), std::back_inserter(ret), [](auto window) {
         return window->effectWindow();
     });
     return ret;

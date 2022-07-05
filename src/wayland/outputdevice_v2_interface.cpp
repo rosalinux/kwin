@@ -195,7 +195,7 @@ void OutputDeviceV2Interface::setCurrentMode(OutputDeviceModeV2Interface *mode)
 
 bool OutputDeviceV2Interface::setCurrentMode(const QSize &size, int refreshRate)
 {
-    auto mode = std::find_if(d->modes.begin(), d->modes.end(), [size, refreshRate](OutputDeviceModeV2Interface *mode) {
+    auto mode = std::ranges::find_if(std::as_const(d->modes), [size, refreshRate](OutputDeviceModeV2Interface *mode) {
         return mode->size() == size && mode->refreshRate() == refreshRate;
     });
     if (mode == d->modes.end()) {

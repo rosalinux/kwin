@@ -88,7 +88,7 @@ void VirtualDesktopManager::setVirtualDesktopManagement(KWaylandServer::PlasmaVi
         removeVirtualDesktop(id);
     });
 
-    std::for_each(m_desktops.constBegin(), m_desktops.constEnd(), createPlasmaVirtualDesktop);
+    std::ranges::for_each(std::as_const(m_desktops), createPlasmaVirtualDesktop);
 
     // Now we are sure all ids are there
     save();
@@ -367,7 +367,7 @@ VirtualDesktop *VirtualDesktopManager::next(VirtualDesktop *desktop, bool wrap) 
     if (!desktop) {
         desktop = m_current;
     }
-    auto it = std::find(m_desktops.begin(), m_desktops.end(), desktop);
+    auto it = std::ranges::find(m_desktops, desktop);
     Q_ASSERT(it != m_desktops.end());
     it++;
     if (it == m_desktops.end()) {
@@ -386,7 +386,7 @@ VirtualDesktop *VirtualDesktopManager::previous(VirtualDesktop *desktop, bool wr
     if (!desktop) {
         desktop = m_current;
     }
-    auto it = std::find(m_desktops.begin(), m_desktops.end(), desktop);
+    auto it = std::ranges::find(m_desktops, desktop);
     Q_ASSERT(it != m_desktops.end());
     if (it == m_desktops.begin()) {
         if (wrap) {
@@ -409,18 +409,10 @@ VirtualDesktop *VirtualDesktopManager::desktopForX11Id(uint id) const
 
 VirtualDesktop *VirtualDesktopManager::desktopForId(const QString &id) const
 {
-    auto desk = std::find_if(
-        m_desktops.constBegin(),
-        m_desktops.constEnd(),
-        [id](const VirtualDesktop *desk) {
-            return desk->id() == id;
-        });
-
-    if (desk != m_desktops.constEnd()) {
-        return *desk;
-    }
-
-    return nullptr;
+    auto desk = std::ranges::find_if(m_desktops, [id](const VirtualDesktop *desk) {
+        return desk->id() == id;
+    });
+    return desk != m_desktops.end() ? *desk : nullptr;
 }
 
 VirtualDesktop *VirtualDesktopManager::createVirtualDesktop(uint position, const QString &name)

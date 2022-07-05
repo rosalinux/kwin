@@ -150,13 +150,12 @@ bool WaylandWindow::belongsToDesktop() const
 {
     const auto clients = waylandServer()->windows();
 
-    return std::any_of(clients.constBegin(), clients.constEnd(),
-                       [this](const Window *client) {
-                           if (belongsToSameApplication(client, SameApplicationChecks())) {
-                               return client->isDesktop();
-                           }
-                           return false;
-                       });
+    return std::ranges::any_of(clients, [this](const Window *client) {
+        if (belongsToSameApplication(client, SameApplicationChecks())) {
+            return client->isDesktop();
+        }
+        return false;
+    });
 }
 
 void WaylandWindow::updateClientOutputs()

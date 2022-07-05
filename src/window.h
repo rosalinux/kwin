@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <ranges>
 
 #include <NETWM>
 
@@ -2277,7 +2278,7 @@ inline T *Window::findInList(const QList<T *> &list, std::function<bool(const U 
 {
     static_assert(std::is_base_of<U, T>::value,
                   "U must be derived from T");
-    const auto it = std::find_if(list.begin(), list.end(), func);
+    const auto it = std::ranges::find_if(list, func);
     if (it == list.end()) {
         return nullptr;
     }

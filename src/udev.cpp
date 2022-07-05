@@ -138,7 +138,7 @@ std::vector<UdevDevice::Ptr> Udev::listGPUs()
     enumerate.addMatch(UdevEnumerate::Match::SysName, "card[0-9]");
     enumerate.scan();
     auto vect = enumerate.find();
-    std::sort(vect.begin(), vect.end(), [](const UdevDevice::Ptr &device1, const UdevDevice::Ptr &device2) {
+    std::ranges::sort(vect, [](const UdevDevice::Ptr &device1, const UdevDevice::Ptr &device2) {
         // if set as boot GPU, prefer 1
         if (device1->isBootVga()) {
             return true;
@@ -163,7 +163,7 @@ std::vector<UdevDevice::Ptr> Udev::listFramebuffers()
     enumerate.addMatch(UdevEnumerate::Match::SysName, "fb[0-9]");
     enumerate.scan();
     auto vect = enumerate.find();
-    std::sort(vect.begin(), vect.end(), [](const UdevDevice::Ptr &device1, const UdevDevice::Ptr &device2) {
+    std::ranges::sort(vect, [](const UdevDevice::Ptr &device1, const UdevDevice::Ptr &device2) {
         // if set as boot GPU, prefer 1
         if (device1->isBootVga()) {
             return true;

@@ -30,7 +30,7 @@ namespace
 QWindow *findWindow(WId win)
 {
     const auto windows = qApp->allWindows();
-    auto it = std::find_if(windows.begin(), windows.end(), [win](QWindow *w) {
+    auto it = std::ranges::find_if(windows, [win](QWindow *w) {
         return w->winId() == win;
     });
     if (it == windows.end()) {

@@ -156,7 +156,7 @@ WaylandQPainterBackend::WaylandQPainterBackend(Wayland::WaylandBackend *b)
     }
     connect(m_backend, &WaylandBackend::outputAdded, this, &WaylandQPainterBackend::createOutput);
     connect(m_backend, &WaylandBackend::outputRemoved, this, [this](Output *waylandOutput) {
-        auto it = std::find_if(m_outputs.begin(), m_outputs.end(), [waylandOutput](const auto &output) {
+        auto it = std::ranges::find_if(m_outputs, [waylandOutput](const auto &output) {
             return output->m_waylandOutput == waylandOutput;
         });
         if (it == m_outputs.end()) {

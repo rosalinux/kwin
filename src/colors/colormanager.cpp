@@ -52,7 +52,7 @@ QVector<ColorDevice *> ColorManager::devices() const
 
 ColorDevice *ColorManager::findDevice(Output *output) const
 {
-    auto it = std::find_if(d->devices.begin(), d->devices.end(), [&output](ColorDevice *device) {
+    auto it = std::ranges::find_if(d->devices, [&output](ColorDevice *device) {
         return device->output() == output;
     });
     if (it != d->devices.end()) {
@@ -70,7 +70,7 @@ void ColorManager::handleOutputEnabled(Output *output)
 
 void ColorManager::handleOutputDisabled(Output *output)
 {
-    auto it = std::find_if(d->devices.begin(), d->devices.end(), [&output](ColorDevice *device) {
+    auto it = std::ranges::find_if(d->devices, [&output](ColorDevice *device) {
         return device->output() == output;
     });
     if (it == d->devices.end()) {

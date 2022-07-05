@@ -205,7 +205,7 @@ QList<std::shared_ptr<DrmConnectorMode>> DrmConnector::modes() const
 
 std::shared_ptr<DrmConnectorMode> DrmConnector::findMode(const drmModeModeInfo &modeInfo) const
 {
-    const auto it = std::find_if(m_modes.constBegin(), m_modes.constEnd(), [&modeInfo](const auto &mode) {
+    const auto it = std::ranges::find_if(m_modes, [&modeInfo](const auto &mode) {
         return checkIfEqual(mode->nativeMode(), &modeInfo);
     });
     return it == m_modes.constEnd() ? nullptr : *it;
@@ -430,7 +430,7 @@ QList<std::shared_ptr<DrmConnectorMode>> DrmConnector::generateCommonModes()
     }
     for (const auto &size : s_commonModes) {
         uint32_t bandwidthEstimation = size.width() * size.height() * 60000;
-        const auto it = std::find_if(m_driverModes.constBegin(), m_driverModes.constEnd(), [size](const auto &mode) {
+        const auto it = std::ranges::find_if(std::as_const(m_driverModes), [size](const auto &mode) {
             return mode->size() == size;
         });
         if (it == m_driverModes.constEnd() && size.width() <= maxSize.width() && size.height() <= maxSize.height() && bandwidthEstimation < maxBandwidthEstimation) {

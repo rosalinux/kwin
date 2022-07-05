@@ -349,10 +349,9 @@ bool AnimationEffect::redirect(quint64 animationId, Direction direction, Termina
     }
 
     for (auto entryIt = d->m_animations.begin(); entryIt != d->m_animations.end(); ++entryIt) {
-        auto animIt = std::find_if(entryIt->first.begin(), entryIt->first.end(),
-                                   [animationId](AniData &anim) {
-                                       return anim.id == animationId;
-                                   });
+        auto animIt = std::ranges::find_if(entryIt->first, [animationId](AniData &anim) {
+            return anim.id == animationId;
+        });
         if (animIt == entryIt->first.end()) {
             continue;
         }
@@ -384,10 +383,9 @@ bool AnimationEffect::complete(quint64 animationId)
     }
 
     for (auto entryIt = d->m_animations.begin(); entryIt != d->m_animations.end(); ++entryIt) {
-        auto animIt = std::find_if(entryIt->first.begin(), entryIt->first.end(),
-                                   [animationId](AniData &anim) {
-                                       return anim.id == animationId;
-                                   });
+        auto animIt = std::ranges::find_if(entryIt->first, [animationId](AniData &anim) {
+            return anim.id == animationId;
+        });
         if (animIt == entryIt->first.end()) {
             continue;
         }
@@ -409,7 +407,9 @@ bool AnimationEffect::cancel(quint64 animationId)
     for (AniMap::iterator entry = d->m_animations.begin(), mapEnd = d->m_animations.end(); entry != mapEnd; ++entry) {
         for (QList<AniData>::iterator anim = entry->first.begin(), animEnd = entry->first.end(); anim != animEnd; ++anim) {
             if (anim->id == animationId) {
-                if (anim->shader && std::none_of(entry->first.begin(), entry->first.end(), [animationId] (const auto &anim) { return anim.id != animationId && anim.shader; })) {
+                if (anim->shader && std::ranges::none_of(entry->first, [animationId](const auto &anim) {
+                        return anim.id != animationId && anim.shader;
+                    })) {
                     unredirect(entry.key());
                 }
                 entry->first.erase(anim); // remove the animation
@@ -673,7 +673,9 @@ void AnimationEffect::postPaintScreen()
             }
             EffectWindow *window = entry.key();
             d->m_justEndedAnimation = anim->id;
-            if (anim->shader && std::none_of(entry->first.begin(), entry->first.end(), [anim] (const auto &other) { return anim->id != other.id && other.shader; })) {
+            if (anim->shader && std::ranges::none_of(entry->first, [anim](const auto &other) {
+                    return anim->id != other.id && other.shader;
+                })) {
                 unredirect(window);
             }
             animationEnded(window, anim->attribute, anim->meta);

@@ -77,6 +77,7 @@
 #include <QWindow>
 
 // system
+#include <ranges>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -700,7 +701,7 @@ void WaylandServer::removeWindow(Window *c)
 
 static Window *findWindowInList(const QList<Window *> &windows, const KWaylandServer::SurfaceInterface *surface)
 {
-    auto it = std::find_if(windows.begin(), windows.end(), [surface](Window *w) {
+    auto it = std::ranges::find_if(windows, [surface](Window *w) {
         return w->surface() == surface;
     });
     if (it == windows.end()) {

@@ -124,7 +124,7 @@ void CompositorWindow::updateFocus()
     if (!m_seat || m_stackingOrder.isEmpty()) {
         return;
     }
-    auto it = std::find_if(m_stackingOrder.constBegin(), m_stackingOrder.constEnd(), [](XdgToplevelInterface *toplevel) {
+    auto it = std::ranges::find_if(std::as_const(m_stackingOrder), [](XdgToplevelInterface *toplevel) {
         return toplevel->surface()->isMapped();
     });
     if (it == m_stackingOrder.constEnd()) {

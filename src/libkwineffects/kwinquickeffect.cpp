@@ -427,7 +427,7 @@ void QuickSceneEffect::windowInputMouseEvent(QEvent *event)
 
 void QuickSceneEffect::grabbedKeyboardEvent(QKeyEvent *keyEvent)
 {
-    auto it = std::find_if(d->views.constBegin(), d->views.constEnd(), [](QuickSceneView *v) {
+    auto it = std::ranges::find_if(std::as_const(d->views), [](QuickSceneView *v) {
         return v->window()->activeFocusItem();
     });
 

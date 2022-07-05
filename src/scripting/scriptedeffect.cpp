@@ -536,7 +536,7 @@ bool ScriptedEffect::retarget(quint64 animationId, const QJSValue &newTarget, in
 
 bool ScriptedEffect::retarget(const QList<quint64> &animationIds, const QJSValue &newTarget, int newRemainingTime)
 {
-    return std::all_of(animationIds.begin(), animationIds.end(), [&](quint64 animationId) {
+    return std::ranges::all_of(animationIds, [&](quint64 animationId) {
         return retarget(animationId, newTarget, newRemainingTime);
     });
 }
@@ -548,7 +548,7 @@ bool ScriptedEffect::freezeInTime(quint64 animationId, qint64 frozenTime)
 
 bool ScriptedEffect::freezeInTime(const QList<quint64> &animationIds, qint64 frozenTime)
 {
-    return std::all_of(animationIds.begin(), animationIds.end(), [&](quint64 animationId) {
+    return std::ranges::all_of(animationIds, [&](quint64 animationId) {
         return AnimationEffect::freezeInTime(animationId, frozenTime);
     });
 }
@@ -560,7 +560,7 @@ bool ScriptedEffect::redirect(quint64 animationId, Direction direction, Terminat
 
 bool ScriptedEffect::redirect(const QList<quint64> &animationIds, Direction direction, TerminationFlags terminationFlags)
 {
-    return std::all_of(animationIds.begin(), animationIds.end(), [&](quint64 animationId) {
+    return std::ranges::all_of(animationIds, [&](quint64 animationId) {
         return redirect(animationId, direction, terminationFlags);
     });
 }
@@ -572,7 +572,7 @@ bool ScriptedEffect::complete(quint64 animationId)
 
 bool ScriptedEffect::complete(const QList<quint64> &animationIds)
 {
-    return std::all_of(animationIds.begin(), animationIds.end(), [&](quint64 animationId) {
+    return std::ranges::all_of(animationIds, [&](quint64 animationId) {
         return complete(animationId);
     });
 }

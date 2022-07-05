@@ -54,7 +54,7 @@ public:
     Outputs(const QVector<T> &other)
     {
         resize(other.size());
-        std::copy(other.constBegin(), other.constEnd(), begin());
+        std::ranges::copy(other, begin());
     }
 };
 

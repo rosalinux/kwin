@@ -261,8 +261,7 @@ bool Compositor::setupStart()
     Q_EMIT aboutToToggleCompositing();
 
     auto supportedCompositors = kwinApp()->platform()->supportedCompositors();
-    const auto userConfigIt = std::find(supportedCompositors.begin(), supportedCompositors.end(),
-                                        options->compositingMode());
+    const auto userConfigIt = std::ranges::find(supportedCompositors, options->compositingMode());
 
     if (userConfigIt != supportedCompositors.end()) {
         supportedCompositors.erase(userConfigIt);
@@ -647,7 +646,7 @@ void Compositor::composite(RenderLoop *renderLoop)
     bool directScanout = false;
     if (scanoutCandidate) {
         const auto sublayers = superLayer->sublayers();
-        const bool scanoutPossible = std::none_of(sublayers.begin(), sublayers.end(), [](RenderLayer *sublayer) {
+        const bool scanoutPossible = std::ranges::none_of(sublayers, [](RenderLayer *sublayer) {
             return sublayer->isVisible();
         });
         if (scanoutPossible && !output->directScanoutInhibited()) {

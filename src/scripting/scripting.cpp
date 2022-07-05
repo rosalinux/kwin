@@ -462,7 +462,7 @@ bool KWin::Script::slotBorderActivated(ElectricBorder border)
     if (callbacks.isEmpty()) {
         return false;
     }
-    std::for_each(callbacks.begin(), callbacks.end(), [](QJSValue callback) {
+    std::ranges::for_each(callbacks, [](QJSValue callback) {
         callback.call();
     });
     return true;

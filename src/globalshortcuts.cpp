@@ -199,7 +199,7 @@ void GlobalShortcutsManager::registerTouchscreenSwipe(QAction *action, std::func
 void GlobalShortcutsManager::forceRegisterTouchscreenSwipe(QAction *action, std::function<void(qreal)> progressCallback, SwipeDirection direction, uint fingerCount)
 {
     GlobalShortcut shortcut{RealtimeFeedbackSwipeShortcut{DeviceType::Touchscreen, direction, progressCallback, fingerCount}, action};
-    const auto it = std::find_if(m_shortcuts.begin(), m_shortcuts.end(), [&shortcut](const auto &s) {
+    const auto it = std::ranges::find_if(m_shortcuts, [&shortcut](const auto &s) {
         return shortcut.shortcut() == s.shortcut();
     });
     if (it != m_shortcuts.end()) {

@@ -16,6 +16,7 @@
 #include "wayland/seat_interface.h"
 #include "wayland_server.h"
 
+#include <ranges>
 #include <unistd.h>
 
 #include <xwayland_logging.h>
@@ -140,7 +141,7 @@ bool WlSource::checkStartTransfer(xcb_selection_request_event_t *event)
     };
     // check supported mimes
     const auto offers = m_dsi->mimeTypes();
-    const auto mimeIt = std::find_if(offers.begin(), offers.end(), cmp);
+    const auto mimeIt = std::ranges::find_if(offers, cmp);
     if (mimeIt == offers.end()) {
         // Requested Mime not supported. Not sending selection.
         return false;
@@ -218,10 +219,9 @@ void X11Source::handleTargets()
             continue;
         }
 
-        const auto mimeIt = std::find_if(m_offers.begin(), m_offers.end(),
-                                         [value, i](const Mime &mime) {
-                                             return mime.second == value[i];
-                                         });
+        const auto mimeIt = std::ranges::find_if(m_offers, [value, i](const Mime &mime) {
+            return mime.second == value[i];
+        });
 
         auto mimePair = Mime(mimeStrings[0], value[i]);
         if (mimeIt == m_offers.end()) {
@@ -270,10 +270,9 @@ bool X11Source::handleSelectionNotify(xcb_selection_notify_event_t *event)
 
 void X11Source::startTransfer(const QString &mimeName, qint32 fd)
 {
-    const auto mimeIt = std::find_if(m_offers.begin(), m_offers.end(),
-                                     [mimeName](const Mime &mime) {
-                                         return mime.first == mimeName;
-                                     });
+    const auto mimeIt = std::ranges::find_if(m_offers, [mimeName](const Mime &mime) {
+        return mime.first == mimeName;
+    });
     if (mimeIt == m_offers.end()) {
         qCDebug(KWIN_XWL) << "Sending X11 clipboard to Wayland failed: unsupported MIME.";
         close(fd);

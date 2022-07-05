@@ -215,7 +215,7 @@ bool EglGbmLayerSurface::createGbmSurface(const QSize &size, const QMap<uint32_t
             sortedFormats << format.value();
         }
     }
-    std::sort(sortedFormats.begin(), sortedFormats.end(), [this](const auto &lhs, const auto &rhs) {
+    std::ranges::sort(sortedFormats, [this](const auto &lhs, const auto &rhs) {
         if (lhs.drmFormat == rhs.drmFormat) {
             // prefer having an alpha channel
             return lhs.alphaSize > rhs.alphaSize;

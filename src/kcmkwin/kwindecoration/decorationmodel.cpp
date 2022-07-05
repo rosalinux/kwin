@@ -155,7 +155,7 @@ void DecorationsModel::init()
 
 QModelIndex DecorationsModel::findDecoration(const QString &pluginName, const QString &themeName) const
 {
-    auto it = std::find_if(m_plugins.cbegin(), m_plugins.cend(), [pluginName, themeName](const KDecoration2::DecorationThemeMetaData &d) {
+    auto it = std::ranges::find_if(m_plugins, [pluginName, themeName](const KDecoration2::DecorationThemeMetaData &d) {
         return d.pluginId() == pluginName && d.themeName() == themeName;
     });
     if (it == m_plugins.cend()) {

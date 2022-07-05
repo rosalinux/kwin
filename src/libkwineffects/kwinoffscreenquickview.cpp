@@ -542,7 +542,7 @@ void OffscreenQuickView::Private::updateTouchState(Qt::TouchPointState state, qi
 
     // Find the touch point that has changed. This is separate from the above
     // loop because removing the released touch points invalidates iterators.
-    auto changed = std::find_if(touchPoints.begin(), touchPoints.end(), [id](const QTouchEvent::TouchPoint &point) {
+    auto changed = std::ranges::find_if(touchPoints, [id](const QTouchEvent::TouchPoint &point) {
         return point.id() == id + idOffset;
     });
 

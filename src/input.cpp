@@ -1082,7 +1082,7 @@ public:
                 }
                 float xfactor = physicalSize.width() / (float)output->geometry().width();
                 float yfactor = physicalSize.height() / (float)output->geometry().height();
-                bool distanceMatch = std::any_of(m_touchPoints.constBegin(), m_touchPoints.constEnd(), [pos, xfactor, yfactor](const auto &point) {
+                bool distanceMatch = std::ranges::any_of(std::as_const(m_touchPoints), [pos, xfactor, yfactor](const auto &point) {
                     QPointF p = pos - point;
                     return std::abs(xfactor * p.x()) + std::abs(yfactor * p.y()) < 50;
                 });
@@ -2141,7 +2141,7 @@ public:
         };
         QVector<TabletToolV2Interface::Capability> ifaceCapabilities;
         ifaceCapabilities.resize(tabletToolId.m_capabilities.size());
-        std::transform(tabletToolId.m_capabilities.constBegin(), tabletToolId.m_capabilities.constEnd(), ifaceCapabilities.begin(), f);
+        std::ranges::transform(std::as_const(tabletToolId.m_capabilities), ifaceCapabilities.begin(), f);
 
         TabletToolV2Interface *tool = tabletSeat->addTool(getType(tabletToolId), tabletToolId.m_serialId, tabletToolId.m_uniqueId, ifaceCapabilities);
 
@@ -2986,7 +2986,7 @@ void InputRedirection::removeInputDevice(InputDevice *device)
 
 void InputRedirection::updateAvailableInputDevices()
 {
-    const bool hasKeyboard = std::any_of(m_inputDevices.constBegin(), m_inputDevices.constEnd(), [](InputDevice *device) {
+    const bool hasKeyboard = std::ranges::any_of(std::as_const(m_inputDevices), [](InputDevice *device) {
         return device->isKeyboard();
     });
     if (m_hasKeyboard != hasKeyboard) {
@@ -2994,7 +2994,7 @@ void InputRedirection::updateAvailableInputDevices()
         Q_EMIT hasKeyboardChanged(hasKeyboard);
     }
 
-    const bool hasAlphaNumericKeyboard = std::any_of(m_inputDevices.constBegin(), m_inputDevices.constEnd(), [](InputDevice *device) {
+    const bool hasAlphaNumericKeyboard = std::ranges::any_of(std::as_const(m_inputDevices), [](InputDevice *device) {
         return device->isAlphaNumericKeyboard();
     });
     if (m_hasAlphaNumericKeyboard != hasAlphaNumericKeyboard) {
@@ -3002,7 +3002,7 @@ void InputRedirection::updateAvailableInputDevices()
         Q_EMIT hasAlphaNumericKeyboardChanged(hasAlphaNumericKeyboard);
     }
 
-    const bool hasPointer = std::any_of(m_inputDevices.constBegin(), m_inputDevices.constEnd(), [](InputDevice *device) {
+    const bool hasPointer = std::ranges::any_of(std::as_const(m_inputDevices), [](InputDevice *device) {
         return device->isPointer();
     });
     if (m_hasPointer != hasPointer) {
@@ -3010,7 +3010,7 @@ void InputRedirection::updateAvailableInputDevices()
         Q_EMIT hasPointerChanged(hasPointer);
     }
 
-    const bool hasTouch = std::any_of(m_inputDevices.constBegin(), m_inputDevices.constEnd(), [](InputDevice *device) {
+    const bool hasTouch = std::ranges::any_of(std::as_const(m_inputDevices), [](InputDevice *device) {
         return device->isTouch();
     });
     if (m_hasTouch != hasTouch) {
@@ -3018,7 +3018,7 @@ void InputRedirection::updateAvailableInputDevices()
         Q_EMIT hasTouchChanged(hasTouch);
     }
 
-    const bool hasTabletModeSwitch = std::any_of(m_inputDevices.constBegin(), m_inputDevices.constEnd(), [](InputDevice *device) {
+    const bool hasTabletModeSwitch = std::ranges::any_of(std::as_const(m_inputDevices), [](InputDevice *device) {
         return device->isTabletModeSwitch();
     });
     if (m_hasTabletModeSwitch != hasTabletModeSwitch) {

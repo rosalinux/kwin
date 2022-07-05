@@ -544,8 +544,8 @@ void DrmPipeline::printFlags(uint32_t flags)
 
 void DrmPipeline::printProps(DrmObject *object, PrintMode mode)
 {
-    auto list = object->properties();
-    bool any = mode == PrintMode::All || std::any_of(list.constBegin(), list.constEnd(), [](const auto &prop) {
+    const auto list = object->properties();
+    bool any = mode == PrintMode::All || std::ranges::any_of(list, [](const auto &prop) {
                    return prop && !prop->isImmutable() && prop->needsCommit();
                });
     if (!any) {

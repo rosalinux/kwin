@@ -248,14 +248,14 @@ ScreenShotSourceMulti1::ScreenShotSourceMulti1(const QList<ScreenShotSource1 *> 
 
 bool ScreenShotSourceMulti1::isCancelled() const
 {
-    return std::any_of(m_sources.begin(), m_sources.end(), [](const ScreenShotSource1 *source) {
+    return std::ranges::any_of(m_sources, [](const ScreenShotSource1 *source) {
         return source->isCancelled();
     });
 }
 
 bool ScreenShotSourceMulti1::isCompleted() const
 {
-    return std::all_of(m_sources.begin(), m_sources.end(), [](const ScreenShotSource1 *source) {
+    return std::ranges::all_of(m_sources, [](const ScreenShotSource1 *source) {
         return source->isCompleted();
     });
 }

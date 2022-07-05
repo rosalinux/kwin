@@ -231,7 +231,7 @@ void PlasmaWindowManagementInterfacePrivate::org_kde_plasma_window_management_ge
                                                                                                  uint32_t id,
                                                                                                  const QString &internal_window_uuid)
 {
-    auto it = std::find_if(windows.constBegin(), windows.constEnd(), [internal_window_uuid](PlasmaWindowInterface *window) {
+    auto it = std::ranges::find_if(std::as_const(windows), [internal_window_uuid](PlasmaWindowInterface *window) {
         return window->d->uuid == internal_window_uuid;
     });
     if (it == windows.constEnd()) {

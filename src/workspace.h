@@ -797,12 +797,12 @@ inline QPoint Workspace::focusMousePosition() const
 
 inline void Workspace::forEachClient(std::function<void(X11Window *)> func)
 {
-    std::for_each(m_x11Clients.constBegin(), m_x11Clients.constEnd(), func);
+    std::ranges::for_each(std::as_const(m_x11Clients), func);
 }
 
 inline void Workspace::forEachUnmanaged(std::function<void(Unmanaged *)> func)
 {
-    std::for_each(m_unmanaged.constBegin(), m_unmanaged.constEnd(), func);
+    std::ranges::for_each(std::as_const(m_unmanaged), func);
 }
 
 inline Workspace *workspace()

@@ -515,7 +515,7 @@ void InputMethod::setPreeditString(uint32_t serial, const QString &text, const Q
             }
             // Check if we can convert highlight style to a range of selection.
             if (!preedit.highlightRanges.empty()) {
-                std::sort(preedit.highlightRanges.begin(), preedit.highlightRanges.end());
+                std::ranges::sort(preedit.highlightRanges);
                 // Check if starting point matches.
                 if (preedit.highlightRanges.front().first == cursor) {
                     quint32 end = preedit.highlightRanges.front().second;

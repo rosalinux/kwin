@@ -44,7 +44,7 @@ public:
     quint32 columns = 0;
     PlasmaVirtualDesktopManagementInterface *q;
 
-    inline QList<PlasmaVirtualDesktopInterface *>::const_iterator constFindDesktop(const QString &id);
+    inline QList<PlasmaVirtualDesktopInterface *>::const_iterator constFindDesktop(const QString &id) const;
     inline QList<PlasmaVirtualDesktopInterface *>::iterator findDesktop(const QString &id);
 
 protected:
@@ -54,16 +54,16 @@ protected:
     void org_kde_plasma_virtual_desktop_management_bind_resource(Resource *resource) override;
 };
 
-inline QList<PlasmaVirtualDesktopInterface *>::const_iterator PlasmaVirtualDesktopManagementInterfacePrivate::constFindDesktop(const QString &id)
+inline QList<PlasmaVirtualDesktopInterface *>::const_iterator PlasmaVirtualDesktopManagementInterfacePrivate::constFindDesktop(const QString &id) const
 {
-    return std::find_if(desktops.constBegin(), desktops.constEnd(), [id](const PlasmaVirtualDesktopInterface *desk) {
+    return std::ranges::find_if(desktops, [id](const PlasmaVirtualDesktopInterface *desk) {
         return desk->id() == id;
     });
 }
 
 inline QList<PlasmaVirtualDesktopInterface *>::iterator PlasmaVirtualDesktopManagementInterfacePrivate::findDesktop(const QString &id)
 {
-    return std::find_if(desktops.begin(), desktops.end(), [id](const PlasmaVirtualDesktopInterface *desk) {
+    return std::ranges::find_if(desktops, [id](const PlasmaVirtualDesktopInterface *desk) {
         return desk->id() == id;
     });
 }

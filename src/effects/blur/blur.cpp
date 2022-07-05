@@ -109,10 +109,9 @@ void BlurEffect::slotScreenGeometryChanged()
 
 bool BlurEffect::renderTargetsValid() const
 {
-    return !m_renderTargets.isEmpty() && std::find_if(m_renderTargets.cbegin(), m_renderTargets.cend(), [](const GLFramebuffer *target) {
-                                             return !target->valid();
-                                         })
-        == m_renderTargets.cend();
+    return !m_renderTargets.isEmpty() && std::ranges::none_of(m_renderTargets, [](const GLFramebuffer *target) {
+        return !target->valid();
+    });
 }
 
 void BlurEffect::deleteFBOs()

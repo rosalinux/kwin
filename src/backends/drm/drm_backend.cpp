@@ -347,7 +347,7 @@ void DrmBackend::updateOutputs()
         }
     }
 
-    std::sort(m_outputs.begin(), m_outputs.end(), [](DrmAbstractOutput *a, DrmAbstractOutput *b) {
+    std::ranges::sort(m_outputs, [](DrmAbstractOutput *a, DrmAbstractOutput *b) {
         auto da = qobject_cast<DrmOutput *>(a);
         auto db = qobject_cast<DrmOutput *>(b);
         if (da && !db) {
@@ -497,7 +497,7 @@ bool DrmBackend::readOutputsConfiguration(const QVector<DrmAbstractOutput *> &ou
         }
         pos.setX(pos.x() + output->geometry().width());
     }
-    bool allDisabled = std::all_of(outputs.begin(), outputs.end(), [&cfg](const auto &output) {
+    bool allDisabled = std::ranges::all_of(outputs, [&cfg](const auto &output) {
         return !cfg.changeSet(output)->enabled;
     });
     if (allDisabled) {
