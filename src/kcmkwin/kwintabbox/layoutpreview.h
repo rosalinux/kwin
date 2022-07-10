@@ -83,6 +83,7 @@ class SwitcherItem : public QObject
     Q_PROPERTY(bool visible READ isVisible NOTIFY visibleChanged)
     Q_PROPERTY(bool allDesktops READ isAllDesktops NOTIFY allDesktopsChanged)
     Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged)
+    Q_PROPERTY(int hidingDelay READ hidingDelay CONSTANT)
 
     /**
      * The main QML item that will be displayed in the Dialog
@@ -102,6 +103,7 @@ public:
     void setCurrentIndex(int index);
     QObject *item() const;
     void setItem(QObject *item);
+    int hidingDelay() const;
 
     void setVisible(bool visible);
     void incrementIndex();
@@ -114,6 +116,9 @@ Q_SIGNALS:
     void allDesktopsChanged();
     void screenGeometryChanged();
     void itemChanged();
+    void hidingDelayChanged();
+    void aboutToShow();
+    void aboutToHide();
 
 private:
     QAbstractItemModel *m_model;
@@ -140,6 +145,11 @@ inline bool SwitcherItem::isAllDesktops() const
 inline int SwitcherItem::currentIndex() const
 {
     return m_currentIndex;
+}
+
+inline int SwitcherItem::hidingDelay() const
+{
+    return 0;
 }
 
 inline QObject *SwitcherItem::item() const

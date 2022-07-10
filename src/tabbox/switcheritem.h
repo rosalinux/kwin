@@ -13,6 +13,7 @@
 #include <QRect>
 
 class QAbstractItemModel;
+class QTimer;
 
 namespace KWin
 {
@@ -29,6 +30,7 @@ class SwitcherItem : public QObject
     Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged)
     Q_PROPERTY(bool noModifierGrab READ noModifierGrab NOTIFY noModifierGrabChanged)
     Q_PROPERTY(bool compositing READ compositing NOTIFY compositingChanged)
+    Q_PROPERTY(int hidingDelay READ hidingDelay WRITE setHidingDelay NOTIFY hidingDelayChanged)
 
     /**
      * The main QML item that will be displayed in the Dialog
@@ -53,12 +55,14 @@ public:
         return m_noModifierGrab;
     }
     bool compositing();
+    int hidingDelay() const;
 
     // for usage from outside
     void setModel(QAbstractItemModel *model);
     void setAllDesktops(bool all);
     void setVisible(bool visible);
     void setNoModifierGrab(bool set);
+    void setHidingDelay(int delay);
 
 Q_SIGNALS:
     void visibleChanged();
@@ -69,6 +73,10 @@ Q_SIGNALS:
     void itemChanged();
     void noModifierGrabChanged();
     void compositingChanged();
+    void hidingDelayChanged();
+    // Can be handled on QML to prepare for effects
+    void aboutToShow();
+    void aboutToHide();
 
 private:
     QAbstractItemModel *m_model;
@@ -78,6 +86,7 @@ private:
     int m_currentIndex;
     QMetaObject::Connection m_selectedIndexConnection;
     bool m_noModifierGrab = false;
+    QTimer *m_hidingTimer;
 };
 
 inline QAbstractItemModel *SwitcherItem::model() const

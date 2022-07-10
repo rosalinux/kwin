@@ -15,6 +15,7 @@
 #include "workspace.h"
 // Qt
 #include <QAbstractItemModel>
+#include <QTimer>
 
 namespace KWin
 {
@@ -28,6 +29,7 @@ SwitcherItem::SwitcherItem(QObject *parent)
     , m_visible(false)
     , m_allDesktops(false)
     , m_currentIndex(0)
+    , m_hidingTimer(nullptr)
 {
     m_selectedIndexConnection = connect(tabBox, &TabBoxHandler::selectedIndexChanged, this, [this] {
         if (isVisible()) {
@@ -36,6 +38,15 @@ SwitcherItem::SwitcherItem(QObject *parent)
     });
     connect(screens(), &Screens::changed, this, &SwitcherItem::screenGeometryChanged);
     connect(Compositor::self(), &Compositor::compositingToggled, this, &SwitcherItem::compositingChanged);
+
+    m_hidingTimer = new QTimer(this);
+    m_hidingTimer->setSingleShot(true);
+    m_hidingTimer->setInterval(0);
+    m_hidingTimer->callOnTimeout([this]() {
+        setVisible(false);
+    });
+    connect(this, &SwitcherItem::aboutToHide, m_hidingTimer, qOverload<>(&QTimer::start));
+    connect(this, &SwitcherItem::aboutToShow, m_hidingTimer, &QTimer::stop);
 }
 
 SwitcherItem::~SwitcherItem()
@@ -66,6 +77,7 @@ void SwitcherItem::setVisible(bool visible)
     if (visible) {
         Q_EMIT screenGeometryChanged();
     }
+    m_hidingTimer->stop();
     m_visible = visible;
     Q_EMIT visibleChanged();
 }
@@ -103,6 +115,20 @@ void SwitcherItem::setNoModifierGrab(bool set)
     }
     m_noModifierGrab = set;
     Q_EMIT noModifierGrabChanged();
+}
+
+int SwitcherItem::hidingDelay() const
+{
+    return m_hidingTimer->interval();
+}
+
+void SwitcherItem::setHidingDelay(int delay)
+{
+    if (m_hidingTimer->interval() == delay) {
+        return;
+    }
+    m_hidingTimer->setInterval(delay);
+    Q_EMIT hidingDelayChanged();
 }
 
 bool SwitcherItem::compositing()
