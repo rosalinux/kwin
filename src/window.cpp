@@ -1833,7 +1833,7 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
     // the bottomleft corner should be at is at (topleft.x(), bottomright().y())
     QPoint topleft = globalPos - interactiveMoveOffset();
     QPoint bottomright = globalPos + invertedInteractiveMoveOffset();
-    QRect previousMoveResizeGeom = moveResizeGeometry();
+    const QRect currentMoveResizeGeom = moveResizeGeometry();
     QRect nextMoveResizeGeom = moveResizeGeometry();
 
     // TODO move whole group when moving its leader or when the leader is not mapped?
@@ -1958,10 +1958,10 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                 // precedence. The opposing edge has no impact on visiblePixels and only one of
                 // the adjacent can alter at a time, ie. it's enough to ignore adjacent edges
                 // if the title edge altered
-                bool leftChanged = previousMoveResizeGeom.left() != currentTry.left();
-                bool rightChanged = previousMoveResizeGeom.right() != currentTry.right();
-                bool topChanged = previousMoveResizeGeom.top() != currentTry.top();
-                bool btmChanged = previousMoveResizeGeom.bottom() != currentTry.bottom();
+                bool leftChanged = currentMoveResizeGeom.left() != currentTry.left();
+                bool rightChanged = currentMoveResizeGeom.right() != currentTry.right();
+                bool topChanged = currentMoveResizeGeom.top() != currentTry.top();
+                bool btmChanged = currentMoveResizeGeom.bottom() != currentTry.bottom();
                 auto fixChangedState = [titleFailed](bool &major, bool &counter, bool &ad1, bool &ad2) {
                     counter = false;
                     if (titleFailed) {
@@ -1987,13 +1987,13 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                     break;
                 }
                 if (topChanged) {
-                    currentTry.setTop(currentTry.y() + sign(previousMoveResizeGeom.y() - currentTry.y()));
+                    currentTry.setTop(currentTry.y() + sign(currentMoveResizeGeom.y() - currentTry.y()));
                 } else if (leftChanged) {
-                    currentTry.setLeft(currentTry.x() + sign(previousMoveResizeGeom.x() - currentTry.x()));
+                    currentTry.setLeft(currentTry.x() + sign(currentMoveResizeGeom.x() - currentTry.x()));
                 } else if (btmChanged) {
-                    currentTry.setBottom(currentTry.bottom() + sign(previousMoveResizeGeom.bottom() - currentTry.bottom()));
+                    currentTry.setBottom(currentTry.bottom() + sign(currentMoveResizeGeom.bottom() - currentTry.bottom()));
                 } else if (rightChanged) {
-                    currentTry.setRight(currentTry.right() + sign(previousMoveResizeGeom.right() - currentTry.right()));
+                    currentTry.setRight(currentTry.right() + sign(currentMoveResizeGeom.right() - currentTry.right()));
                 } else {
                     break; // no position changed - that's certainly not good
                 }
@@ -2090,8 +2090,8 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                         }
                     }
 
-                    int dx = sign(previousMoveResizeGeom.x() - currentTry.x()),
-                        dy = sign(previousMoveResizeGeom.y() - currentTry.y());
+                    int dx = sign(currentMoveResizeGeom.x() - currentTry.x()),
+                        dy = sign(currentMoveResizeGeom.y() - currentTry.y());
                     if (visiblePixels && dx) { // means there's no full width cap -> favor horizontally
                         dy = 0;
                     } else if (dy) {
@@ -2102,7 +2102,7 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                     currentTry.translate(dx, dy);
                     nextMoveResizeGeom = currentTry;
 
-                    if (nextMoveResizeGeom == previousMoveResizeGeom) {
+                    if (nextMoveResizeGeom == currentMoveResizeGeom) {
                         break; // Prevent lockup
                     }
                 }
@@ -2112,7 +2112,7 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
         Q_UNREACHABLE();
     }
 
-    if (nextMoveResizeGeom != previousMoveResizeGeom) {
+    if (nextMoveResizeGeom != currentMoveResizeGeom) {
         if (isInteractiveMove()) {
             move(nextMoveResizeGeom.topLeft());
         } else {
