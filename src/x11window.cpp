@@ -4708,8 +4708,10 @@ bool X11Window::isWaitingForInteractiveMoveResizeSync() const
     return m_syncRequest.isPending && m_syncRequest.interactiveResize;
 }
 
-void X11Window::doInteractiveResizeSync()
+void X11Window::doInteractiveResizeSync(const QRect &rect)
 {
+    setMoveResizeGeometry(rect);
+
     if (!m_syncRequest.timeout) {
         m_syncRequest.timeout = new QTimer(this);
         connect(m_syncRequest.timeout, &QTimer::timeout, this, &X11Window::handleSyncTimeout);

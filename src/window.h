@@ -1819,7 +1819,7 @@ protected:
      *
      * Default implementation does nothing.
      */
-    virtual void doInteractiveResizeSync();
+    virtual void doInteractiveResizeSync(const QRect &rect);
     void handleInteractiveMoveResize(int x, int y, int x_root, int y_root);
     void handleInteractiveMoveResize(const QPoint &local, const QPoint &global);
     void dontInteractiveMoveResize();

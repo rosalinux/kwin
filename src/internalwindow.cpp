@@ -452,9 +452,9 @@ bool InternalWindow::belongsToSameApplication(const Window *other, SameApplicati
     return otherInternal->handle()->isAncestorOf(handle()) || handle()->isAncestorOf(otherInternal->handle());
 }
 
-void InternalWindow::doInteractiveResizeSync()
+void InternalWindow::doInteractiveResizeSync(const QRect &rect)
 {
-    requestGeometry(moveResizeGeometry());
+    moveResize(rect);
 }
 
 void InternalWindow::updateCaption()

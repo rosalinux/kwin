@@ -1834,69 +1834,68 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
     QPoint topleft = globalPos - interactiveMoveOffset();
     QPoint bottomright = globalPos + invertedInteractiveMoveOffset();
     QRect previousMoveResizeGeom = moveResizeGeometry();
+    QRect nextMoveResizeGeom = moveResizeGeometry();
 
     // TODO move whole group when moving its leader or when the leader is not mapped?
 
-    auto titleBarRect = [this](bool &transposed, int &requiredPixels) -> QRect {
-        const QRect &moveResizeGeom = moveResizeGeometry();
-        QRect r(moveResizeGeom);
-        r.moveTopLeft(QPoint(0, 0));
+    auto titleBarRect = [this](const QRect &rect, bool &transposed, int &requiredPixels) -> QRect {
+        QRect titleRect = rect;
+        titleRect.moveTopLeft(QPoint(0, 0));
         switch (titlebarPosition()) {
         default:
         case Qt::TopEdge:
-            r.setHeight(borderTop());
+            titleRect.setHeight(borderTop());
             break;
         case Qt::LeftEdge:
-            r.setWidth(borderLeft());
+            titleRect.setWidth(borderLeft());
             transposed = true;
             break;
         case Qt::BottomEdge:
-            r.setTop(r.bottom() - borderBottom());
+            titleRect.setTop(titleRect.bottom() - borderBottom());
             break;
         case Qt::RightEdge:
-            r.setLeft(r.right() - borderRight());
+            titleRect.setLeft(titleRect.right() - borderRight());
             transposed = true;
             break;
         }
         // When doing a restricted move we must always keep 100px of the titlebar
         // visible to allow the user to be able to move it again.
-        requiredPixels = qMin(100 * (transposed ? r.width() : r.height()),
-                              moveResizeGeom.width() * moveResizeGeom.height());
-        return r;
+        requiredPixels = qMin(100 * (transposed ? titleRect.width() : titleRect.height()),
+                              rect.width() * rect.height());
+        return titleRect;
     };
 
-    bool update = false;
     if (isInteractiveResize()) {
         QRect orig = initialInteractiveMoveResizeGeometry();
         SizeMode sizeMode = SizeModeAny;
-        auto calculateMoveResizeGeom = [this, &topleft, &bottomright, &orig, &sizeMode, &gravity]() {
+        auto calculateMoveResizeGeom = [&topleft, &bottomright, &orig, &nextMoveResizeGeom, &sizeMode, &gravity]() {
             switch (gravity) {
             case Gravity::TopLeft:
-                setMoveResizeGeometry(QRect(topleft, orig.bottomRight()));
+                nextMoveResizeGeom = QRect(topleft, orig.bottomRight());
                 break;
             case Gravity::BottomRight:
-                setMoveResizeGeometry(QRect(orig.topLeft(), bottomright));
+                nextMoveResizeGeom = QRect(orig.topLeft(), bottomright);
                 break;
             case Gravity::BottomLeft:
-                setMoveResizeGeometry(QRect(QPoint(topleft.x(), orig.y()), QPoint(orig.right(), bottomright.y())));
+                nextMoveResizeGeom = QRect(QPoint(topleft.x(), orig.y()), QPoint(orig.right(), bottomright.y()));
                 break;
             case Gravity::TopRight:
-                setMoveResizeGeometry(QRect(QPoint(orig.x(), topleft.y()), QPoint(bottomright.x(), orig.bottom())));
+                nextMoveResizeGeom = QRect(QPoint(orig.x(), topleft.y()), QPoint(bottomright.x(), orig.bottom()));
                 break;
             case Gravity::Top:
-                setMoveResizeGeometry(QRect(QPoint(orig.left(), topleft.y()), orig.bottomRight()));
+                nextMoveResizeGeom = QRect(QPoint(orig.left(), topleft.y()), orig.bottomRight());
                 sizeMode = SizeModeFixedH; // try not to affect height
                 break;
             case Gravity::Bottom:
-                setMoveResizeGeometry(QRect(orig.topLeft(), QPoint(orig.right(), bottomright.y())));
+                nextMoveResizeGeom = QRect(orig.topLeft(), QPoint(orig.right(), bottomright.y()));
                 sizeMode = SizeModeFixedH;
                 break;
             case Gravity::Left:
-                setMoveResizeGeometry(QRect(QPoint(topleft.x(), orig.top()), orig.bottomRight()));
+                nextMoveResizeGeom = QRect(QPoint(topleft.x(), orig.top()), orig.bottomRight());
                 sizeMode = SizeModeFixedW;
                 break;
             case Gravity::Right:
-                setMoveResizeGeometry(QRect(orig.topLeft(), QPoint(bottomright.x(), orig.bottom())));
+                nextMoveResizeGeom = QRect(orig.topLeft(), QPoint(bottomright.x(), orig.bottom()));
                 sizeMode = SizeModeFixedW;
                 break;
             case Gravity::None:
@@ -1908,7 +1907,7 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
         // first resize (without checking constrains), then snap, then check bounds, then check constrains
         calculateMoveResizeGeom();
         // adjust new size to snap to other windows/borders
-        setMoveResizeGeometry(workspace()->adjustWindowSize(this, moveResizeGeometry(), gravity));
+        nextMoveResizeGeom = workspace()->adjustWindowSize(this, nextMoveResizeGeom, gravity);
 
         if (!isUnrestrictedInteractiveMoveResize()) {
             // Make sure the titlebar isn't behind a restricted area. We don't need to restrict
@@ -1918,12 +1917,12 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
             availableArea -= workspace()->restrictedMoveArea(VirtualDesktopManager::self()->currentDesktop());
             bool transposed = false;
             int requiredPixels;
-            QRect bTitleRect = titleBarRect(transposed, requiredPixels);
+            QRect bTitleRect = titleBarRect(nextMoveResizeGeom, transposed, requiredPixels);
             int lastVisiblePixels = -1;
-            QRect lastTry = moveResizeGeometry();
+            QRect lastTry = nextMoveResizeGeom;
             bool titleFailed = false;
             for (;;) {
-                const QRect titleRect(bTitleRect.translated(moveResizeGeometry().topLeft()));
+                const QRect titleRect(bTitleRect.translated(nextMoveResizeGeom.topLeft()));
                 int visiblePixels = 0;
                 int realVisiblePixels = 0;
                 for (const QRect &rect : availableArea) {
@@ -1944,14 +1943,14 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                         break; // we won't become better
                     } else {
                         if (!titleFailed) {
-                            setMoveResizeGeometry(lastTry);
+                            nextMoveResizeGeom = lastTry;
                         }
                         titleFailed = true;
                     }
                 }
                 lastVisiblePixels = realVisiblePixels;
-                QRect moveResizeGeom = moveResizeGeometry();
-                lastTry = moveResizeGeom;
+                QRect currentTry = nextMoveResizeGeom;
+                lastTry = currentTry;
 
                 // Not visible enough, move the window to the closest valid point. We bruteforce
                 // this by slowly moving the window back to its previous position.
@@ -1959,10 +1958,10 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                 // precedence. The opposing edge has no impact on visiblePixels and only one of
                 // the adjacent can alter at a time, ie. it's enough to ignore adjacent edges
                 // if the title edge altered
-                bool leftChanged = previousMoveResizeGeom.left() != moveResizeGeom.left();
-                bool rightChanged = previousMoveResizeGeom.right() != moveResizeGeom.right();
-                bool topChanged = previousMoveResizeGeom.top() != moveResizeGeom.top();
-                bool btmChanged = previousMoveResizeGeom.bottom() != moveResizeGeom.bottom();
+                bool leftChanged = previousMoveResizeGeom.left() != currentTry.left();
+                bool rightChanged = previousMoveResizeGeom.right() != currentTry.right();
+                bool topChanged = previousMoveResizeGeom.top() != currentTry.top();
+                bool btmChanged = previousMoveResizeGeom.bottom() != currentTry.bottom();
                 auto fixChangedState = [titleFailed](bool &major, bool &counter, bool &ad1, bool &ad2) {
                     counter = false;
                     if (titleFailed) {
@@ -1988,26 +1987,26 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                     break;
                 }
                 if (topChanged) {
-                    moveResizeGeom.setTop(moveResizeGeom.y() + sign(previousMoveResizeGeom.y() - moveResizeGeom.y()));
+                    currentTry.setTop(currentTry.y() + sign(previousMoveResizeGeom.y() - currentTry.y()));
                 } else if (leftChanged) {
-                    moveResizeGeom.setLeft(moveResizeGeom.x() + sign(previousMoveResizeGeom.x() - moveResizeGeom.x()));
+                    currentTry.setLeft(currentTry.x() + sign(previousMoveResizeGeom.x() - currentTry.x()));
                 } else if (btmChanged) {
-                    moveResizeGeom.setBottom(moveResizeGeom.bottom() + sign(previousMoveResizeGeom.bottom() - moveResizeGeom.bottom()));
+                    currentTry.setBottom(currentTry.bottom() + sign(previousMoveResizeGeom.bottom() - currentTry.bottom()));
                 } else if (rightChanged) {
-                    moveResizeGeom.setRight(moveResizeGeom.right() + sign(previousMoveResizeGeom.right() - moveResizeGeom.right()));
+                    currentTry.setRight(currentTry.right() + sign(previousMoveResizeGeom.right() - currentTry.right()));
                 } else {
                     break; // no position changed - that's certainly not good
                 }
-                setMoveResizeGeometry(moveResizeGeom);
+                nextMoveResizeGeom = currentTry;
             }
         }
 
         // Always obey size hints, even when in "unrestricted" mode
-        QSize size = constrainFrameSize(moveResizeGeometry().size(), sizeMode);
+        QSize size = constrainFrameSize(nextMoveResizeGeom.size(), sizeMode);
         // the new topleft and bottomright corners (after checking size constrains), if they'll be needed
-        topleft = QPoint(moveResizeGeometry().right() - size.width() + 1, moveResizeGeometry().bottom() - size.height() + 1);
-        bottomright = QPoint(moveResizeGeometry().left() + size.width() - 1, moveResizeGeometry().top() + size.height() - 1);
-        orig = moveResizeGeometry();
+        topleft = QPoint(nextMoveResizeGeom.right() - size.width() + 1, nextMoveResizeGeom.bottom() - size.height() + 1);
+        bottomright = QPoint(nextMoveResizeGeom.left() + size.width() - 1, nextMoveResizeGeom.top() + size.height() - 1);
+        orig = nextMoveResizeGeom;
 
         // if aspect ratios are specified, both dimensions may change.
         // Therefore grow to the right/bottom if needed.
@@ -2019,34 +2018,29 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
         }
 
         calculateMoveResizeGeom();
-
-        if (moveResizeGeometry().size() != previousMoveResizeGeom.size()) {
-            update = true;
-        }
     } else if (isInteractiveMove()) {
         Q_ASSERT(gravity == Gravity::None);
         if (!isMovable()) { // isMovableAcrossScreens() must have been true to get here
             // Special moving of maximized windows on Xinerama screens
             Output *output = kwinApp()->platform()->outputAt(globalPos);
             if (isFullScreen()) {
-                setMoveResizeGeometry(workspace()->clientArea(FullScreenArea, this, output));
+                nextMoveResizeGeom = workspace()->clientArea(FullScreenArea, this, output);
             } else {
-                QRect moveResizeGeom = workspace()->clientArea(MaximizeArea, this, output);
-                QSize adjSize = constrainFrameSize(moveResizeGeom.size(), SizeModeMax);
-                if (adjSize != moveResizeGeom.size()) {
-                    QRect r(moveResizeGeom);
-                    moveResizeGeom.setSize(adjSize);
-                    moveResizeGeom.moveCenter(r.center());
+                nextMoveResizeGeom = workspace()->clientArea(MaximizeArea, this, output);
+                const QSize adjSize = constrainFrameSize(nextMoveResizeGeom.size(), SizeModeMax);
+                if (adjSize != nextMoveResizeGeom.size()) {
+                    QRect r(nextMoveResizeGeom);
+                    nextMoveResizeGeom.setSize(adjSize);
+                    nextMoveResizeGeom.moveCenter(r.center());
                 }
-                setMoveResizeGeometry(moveResizeGeom);
             }
         } else {
             // first move, then snap, then check bounds
-            QRect moveResizeGeom = moveResizeGeometry();
-            moveResizeGeom.moveTopLeft(topleft);
-            moveResizeGeom.moveTopLeft(workspace()->adjustWindowPosition(this, moveResizeGeom.topLeft(),
-                                                                         isUnrestrictedInteractiveMoveResize()));
-            setMoveResizeGeometry(moveResizeGeom);
+            QRect geometry = nextMoveResizeGeom;
+            geometry.moveTopLeft(topleft);
+            geometry.moveTopLeft(workspace()->adjustWindowPosition(this, geometry.topLeft(),
+                                                                   isUnrestrictedInteractiveMoveResize()));
+            nextMoveResizeGeom = geometry;
 
             if (!isUnrestrictedInteractiveMoveResize()) {
                 const QRegion strut = workspace()->restrictedMoveArea(VirtualDesktopManager::self()->currentDesktop());
@@ -2054,10 +2048,10 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                 availableArea -= strut; // Strut areas
                 bool transposed = false;
                 int requiredPixels;
-                QRect bTitleRect = titleBarRect(transposed, requiredPixels);
+                QRect bTitleRect = titleBarRect(nextMoveResizeGeom, transposed, requiredPixels);
                 for (;;) {
-                    QRect moveResizeGeom = moveResizeGeometry();
-                    const QRect titleRect(bTitleRect.translated(moveResizeGeom.topLeft()));
+                    QRect currentTry = nextMoveResizeGeom;
+                    const QRect titleRect(bTitleRect.translated(currentTry.topLeft()));
                     int visiblePixels = 0;
                     for (const QRect &rect : availableArea) {
                         const QRect r = rect & titleRect;
@@ -2084,20 +2078,20 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                         int newTitleTop = -1;
                         for (const QRect &r : strut) {
                             if (r.top() == 0 && r.width() > r.height() && // "top panel"
-                                r.intersects(moveResizeGeom) && moveResizeGeom.top() < r.bottom()) {
+                                r.intersects(currentTry) && currentTry.top() < r.bottom()) {
                                 newTitleTop = r.bottom() + 1;
                                 break;
                             }
                         }
                         if (newTitleTop > -1) {
-                            moveResizeGeom.moveTop(newTitleTop); // invalid position, possibly on screen change
-                            setMoveResizeGeometry(moveResizeGeom);
+                            currentTry.moveTop(newTitleTop); // invalid position, possibly on screen change
+                            nextMoveResizeGeom = currentTry;
                             break;
                         }
                     }
 
-                    int dx = sign(previousMoveResizeGeom.x() - moveResizeGeom.x()),
-                        dy = sign(previousMoveResizeGeom.y() - moveResizeGeom.y());
+                    int dx = sign(previousMoveResizeGeom.x() - currentTry.x()),
+                        dy = sign(previousMoveResizeGeom.y() - currentTry.y());
                     if (visiblePixels && dx) { // means there's no full width cap -> favor horizontally
                         dy = 0;
                     } else if (dy) {
@@ -2105,33 +2099,28 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
                     }
 
                     // Move it back
-                    moveResizeGeom.translate(dx, dy);
-                    setMoveResizeGeometry(moveResizeGeom);
+                    currentTry.translate(dx, dy);
+                    nextMoveResizeGeom = currentTry;
 
-                    if (moveResizeGeom == previousMoveResizeGeom) {
+                    if (nextMoveResizeGeom == previousMoveResizeGeom) {
                         break; // Prevent lockup
                     }
                 }
             }
         }
-        if (moveResizeGeometry().topLeft() != previousMoveResizeGeom.topLeft()) {
-            update = true;
-        }
     } else {
         Q_UNREACHABLE();
     }
 
-    if (!update) {
-        return;
-    }
+    if (nextMoveResizeGeom != previousMoveResizeGeom) {
+        if (isInteractiveMove()) {
+            move(nextMoveResizeGeom.topLeft());
+        } else {
+            doInteractiveResizeSync(nextMoveResizeGeom);
+        }
 
-    if (isInteractiveMove()) {
-        move(moveResizeGeometry().topLeft());
-    } else {
-        doInteractiveResizeSync();
+        Q_EMIT clientStepUserMovedResized(this, nextMoveResizeGeom);
     }
-
-    Q_EMIT clientStepUserMovedResized(this, moveResizeGeometry());
 }
 
 StrutRect Window::strutRect(StrutArea area) const
@@ -2810,8 +2799,9 @@ bool Window::isWaitingForInteractiveMoveResizeSync() const
     return false;
 }
 
-void Window::doInteractiveResizeSync()
+void Window::doInteractiveResizeSync(const QRect &rect)
 {
+    Q_UNUSED(rect)
 }
 
 void Window::checkQuickTilingMaximizationZones(int xroot, int yroot)
