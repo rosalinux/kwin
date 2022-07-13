@@ -39,6 +39,7 @@
 #include <netwm.h>
 
 #include <climits>
+#include <cmath>
 #include <functional>
 
 class KConfigGroup;
@@ -189,6 +190,14 @@ enum EffectFrameStyle {
     EffectFrameUnstyled, ///< Displays a basic box around the contents.
     EffectFrameStyled ///< Displays a Plasma-styled frame around the contents.
 };
+
+/**
+ * Round a vector to nearest integer.
+ */
+KWINEFFECTS_EXPORT inline QVector2D roundVector(const QVector2D &input)
+{
+    return QVector2D(std::round(input.x()), std::round(input.y()));
+}
 
 /**
  * @short Base class for all KWin effects
