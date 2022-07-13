@@ -35,6 +35,7 @@ target_sources(kwin PRIVATE
     colors/colorlut.cpp
     colors/colormanager.cpp
     colors/colorpipelinestage.cpp
+    colors/colorspace.cpp
     colors/colortransformation.cpp
     composite.cpp
     cursor.cpp

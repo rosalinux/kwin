@@ -9,6 +9,7 @@
 #include "kwinglobals.h"
 
 #include <QObject>
+#include <memory>
 
 namespace KWin
 {
@@ -16,6 +17,7 @@ namespace KWin
 class Output;
 class ColorDevice;
 class ColorManagerPrivate;
+class ColorSpace;
 
 /**
  * The ColorManager class is the entry point into color management facilities.
@@ -38,6 +40,8 @@ public:
      */
     QVector<ColorDevice *> devices() const;
 
+    std::shared_ptr<ColorSpace> getColorSpace(const QString &path);
+
 Q_SIGNALS:
     /**
      * This signal is emitted when a new color device @a device has been added.
@@ -55,7 +59,7 @@ private Q_SLOTS:
     void handleSessionActiveChanged(bool active);
 
 private:
-    QScopedPointer<ColorManagerPrivate> d;
+    std::unique_ptr<ColorManagerPrivate> d;
     KWIN_SINGLETON(ColorManager)
 };
 

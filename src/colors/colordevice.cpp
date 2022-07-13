@@ -5,7 +5,9 @@
 */
 
 #include "colordevice.h"
+#include "colormanager.h"
 #include "colorpipelinestage.h"
+#include "colorspace.h"
 #include "colortransformation.h"
 #include "output.h"
 #include "utils/common.h"
@@ -61,7 +63,7 @@ public:
 
     std::unique_ptr<ColorPipelineStage> temperatureStage;
     std::unique_ptr<ColorPipelineStage> brightnessStage;
-    std::unique_ptr<ColorPipelineStage> calibrationStage;
+    std::shared_ptr<ColorPipelineStage> calibrationStage;
 
     std::shared_ptr<ColorTransformation> transformation;
 };
@@ -208,27 +210,9 @@ void ColorDevicePrivate::updateCalibrationToneCurves()
     if (profile.isNull()) {
         return;
     }
-
-    cmsHPROFILE handle = cmsOpenProfileFromFile(profile.toUtf8(), "r");
-    if (!handle) {
-        qCWarning(KWIN_CORE) << "Failed to open color profile file:" << profile;
-        return;
+    if (auto profileObject = ColorManager::self()->getColorSpace(profile)) {
+        calibrationStage = profileObject->tag();
     }
-
-    cmsToneCurve **vcgt = static_cast<cmsToneCurve **>(cmsReadTag(handle, cmsSigVcgtTag));
-    if (!vcgt || !vcgt[0]) {
-        qCWarning(KWIN_CORE) << "Profile" << profile << "has no VCGT tag";
-    } else {
-        // Need to duplicate the VCGT tone curves as they are owned by the profile.
-        cmsToneCurve *toneCurves[] = {
-            cmsDupToneCurve(vcgt[0]),
-            cmsDupToneCurve(vcgt[1]),
-            cmsDupToneCurve(vcgt[2]),
-        };
-        calibrationStage = std::make_unique<ColorPipelineStage>(cmsStageAllocToneCurves(nullptr, 3, toneCurves));
-    }
-
-    cmsCloseProfile(handle);
 }
 
 ColorDevice::ColorDevice(Output *output, QObject *parent)

@@ -6,11 +6,14 @@
 
 #include "colormanager.h"
 #include "colordevice.h"
+#include "colorspace.h"
 #include "main.h"
 #include "output.h"
 #include "platform.h"
 #include "session.h"
 #include "utils/common.h"
+
+#include <lcms2.h>
 
 namespace KWin
 {
@@ -21,6 +24,7 @@ class ColorManagerPrivate
 {
 public:
     QVector<ColorDevice *> devices;
+    QMap<QString, std::weak_ptr<ColorSpace>> colorspaces;
 };
 
 ColorManager::ColorManager(QObject *parent)
@@ -91,6 +95,18 @@ void ColorManager::handleSessionActiveChanged(bool active)
     for (ColorDevice *device : qAsConst(d->devices)) {
         device->scheduleUpdate();
     }
+}
+
+std::shared_ptr<ColorSpace> ColorManager::getColorSpace(const QString &path)
+{
+    auto ptr = d->colorspaces[path].lock();
+    if (!ptr) {
+        cmsHPROFILE handle = cmsOpenProfileFromFile(path.toUtf8(), "r");
+        if (handle) {
+            d->colorspaces[path] = ptr = std::make_shared<ColorSpace>(handle);
+        }
+    }
+    return ptr;
 }
 
 } // namespace KWin
