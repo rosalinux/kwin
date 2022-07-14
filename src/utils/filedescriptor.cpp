@@ -38,7 +38,7 @@ FileDescriptor::~FileDescriptor()
     }
 }
 
-FileDescriptor::operator bool() const
+bool FileDescriptor::isValid() const
 {
     return m_fd != -1;
 }
