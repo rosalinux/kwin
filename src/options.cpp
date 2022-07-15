@@ -12,8 +12,10 @@
 
 #include "config-kwin.h"
 
+#include "output.h"
 #include "platform.h"
 #include "utils/common.h"
+#include "workspace.h"
 
 #ifndef KCMRULES
 
@@ -756,6 +758,7 @@ void Options::loadConfig()
         });
         return action;
     };
+    qDeleteAll(m_modifierOnlyShortcuts);
     m_modifierOnlyShortcuts.clear();
     if (config.hasKey("Shift")) {
         m_modifierOnlyShortcuts.insert(Qt::ShiftModifier, dbusCallAction(config.readEntry("Shift", QStringList())));
@@ -769,7 +772,13 @@ void Options::loadConfig()
     if (config.hasKey("Meta")) {
         m_modifierOnlyShortcuts.insert(Qt::MetaModifier, dbusCallAction(config.readEntry("Meta", QStringList())));
     } else {
-        m_modifierOnlyShortcuts.insert(Qt::MetaModifier, dbusCallAction({QStringLiteral("org.kde.plasmashell"), QStringLiteral("/PlasmaShell"), QStringLiteral("org.kde.PlasmaShell"), QStringLiteral("activateLauncherMenu")}));
+        auto action = new QAction(this);
+        connect(action, &QAction::triggered, this, [] {
+            auto call = QDBusMessage::createMethodCall(QStringLiteral("org.kde.plasmashell"), QStringLiteral("/PlasmaShell"), QStringLiteral("org.kde.PlasmaShell"), QStringLiteral("activateLauncherMenu"));
+            call.setArguments({workspace()->activeOutput()->name()});
+            QDBusConnection::sessionBus().send(call);
+        });
+        m_modifierOnlyShortcuts.insert(Qt::MetaModifier, action);
     }
 }
 
