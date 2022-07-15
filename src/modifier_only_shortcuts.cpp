@@ -18,10 +18,6 @@
 #include "wayland_server.h"
 #include "workspace.h"
 
-#include <QDBusConnection>
-#include <QDBusMessage>
-#include <QDBusPendingCall>
-
 namespace KWin
 {
 
@@ -57,17 +53,9 @@ void ModifierOnlyShortcuts::keyEvent(KeyEvent *event)
         m_pressedKeys.remove(event->nativeScanCode());
         if (m_pressedKeys.isEmpty() && event->modifiersRelevantForGlobalShortcuts() == Qt::NoModifier && workspace() && !workspace()->globalShortcutsDisabled()) {
             if (m_modifier != Qt::NoModifier) {
-                const auto list = options->modifierOnlyDBusShortcut(m_modifier);
-                if (list.size() >= 4) {
-                    if (!waylandServer() || !waylandServer()->isKeyboardShortcutsInhibited()) {
-                        auto call = QDBusMessage::createMethodCall(list.at(0), list.at(1), list.at(2), list.at(3));
-                        QVariantList args;
-                        for (int i = 4; i < list.size(); ++i) {
-                            args << list.at(i);
-                        }
-                        call.setArguments(args);
-                        QDBusConnection::sessionBus().asyncCall(call);
-                    }
+                const auto action = options->modifierOnlyShortcut(m_modifier);
+                if (action && (!waylandServer() || !waylandServer()->isKeyboardShortcutsInhibited())) {
+                    action->trigger();
                 }
             }
         }

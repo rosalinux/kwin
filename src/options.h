@@ -17,6 +17,8 @@
 
 #include <KConfigWatcher>
 
+class QAction;
+
 namespace KWin
 {
 
@@ -670,7 +672,7 @@ public:
         return m_MoveMinimizedWindowsToEndOfTabBoxFocusChain;
     }
 
-    QStringList modifierOnlyDBusShortcut(Qt::KeyboardModifier mod) const;
+    QAction *modifierOnlyShortcut(Qt::KeyboardModifier mod) const;
     LatencyPolicy latencyPolicy() const;
     RenderTimeEstimator renderTimeEstimator() const;
 
@@ -1004,7 +1006,7 @@ private:
     bool borderless_maximized_windows;
     bool condensed_title;
 
-    QHash<Qt::KeyboardModifier, QStringList> m_modifierOnlyShortcuts;
+    QHash<Qt::KeyboardModifier, QAction *> m_modifierOnlyShortcuts;
 
     MouseCommand wheelToMouseCommand(MouseWheelCommand com, int delta) const;
 };

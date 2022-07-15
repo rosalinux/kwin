@@ -17,6 +17,10 @@
 
 #ifndef KCMRULES
 
+#include <QAction>
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusPendingCall>
 #include <QProcess>
 
 #include "settings.h"
@@ -737,17 +741,36 @@ void Options::loadConfig()
 
     // Modifier Only Shortcuts
     config = KConfigGroup(m_settings->config(), "ModifierOnlyShortcuts");
+    auto dbusCallAction = [this](const QStringList &list) {
+        auto action = new QAction(this);
+        connect(action, &QAction::triggered, this, [list] {
+            if (list.size() >= 4) {
+                auto call = QDBusMessage::createMethodCall(list.at(0), list.at(1), list.at(2), list.at(3));
+                QVariantList args;
+                for (int i = 4; i < list.size(); ++i) {
+                    args << list.at(i);
+                }
+                call.setArguments(args);
+                QDBusConnection::sessionBus().asyncCall(call);
+            }
+        });
+        return action;
+    };
     m_modifierOnlyShortcuts.clear();
     if (config.hasKey("Shift")) {
-        m_modifierOnlyShortcuts.insert(Qt::ShiftModifier, config.readEntry("Shift", QStringList()));
+        m_modifierOnlyShortcuts.insert(Qt::ShiftModifier, dbusCallAction(config.readEntry("Shift", QStringList())));
     }
     if (config.hasKey("Control")) {
-        m_modifierOnlyShortcuts.insert(Qt::ControlModifier, config.readEntry("Control", QStringList()));
+        m_modifierOnlyShortcuts.insert(Qt::ControlModifier, dbusCallAction(config.readEntry("Control", QStringList())));
     }
     if (config.hasKey("Alt")) {
-        m_modifierOnlyShortcuts.insert(Qt::AltModifier, config.readEntry("Alt", QStringList()));
+        m_modifierOnlyShortcuts.insert(Qt::AltModifier, dbusCallAction(config.readEntry("Alt", QStringList())));
     }
-    m_modifierOnlyShortcuts.insert(Qt::MetaModifier, config.readEntry("Meta", QStringList{QStringLiteral("org.kde.plasmashell"), QStringLiteral("/PlasmaShell"), QStringLiteral("org.kde.PlasmaShell"), QStringLiteral("activateLauncherMenu")}));
+    if (config.hasKey("Meta")) {
+        m_modifierOnlyShortcuts.insert(Qt::MetaModifier, dbusCallAction(config.readEntry("Meta", QStringList())));
+    } else {
+        m_modifierOnlyShortcuts.insert(Qt::MetaModifier, dbusCallAction({QStringLiteral("org.kde.plasmashell"), QStringLiteral("/PlasmaShell"), QStringLiteral("org.kde.PlasmaShell"), QStringLiteral("activateLauncherMenu")}));
+    }
 }
 
 void Options::syncFromKcfgc()
@@ -1074,7 +1097,7 @@ Options::WindowOperation Options::operationMaxButtonClick(Qt::MouseButtons butto
                                                                                           : opMaxButtonLeftClick;
 }
 
-QStringList Options::modifierOnlyDBusShortcut(Qt::KeyboardModifier mod) const
+QAction *Options::modifierOnlyShortcut(Qt::KeyboardModifier mod) const
 {
     return m_modifierOnlyShortcuts.value(mod);
 }
