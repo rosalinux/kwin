@@ -122,33 +122,37 @@ bool DrmObject::needsCommit() const
     return false;
 }
 
-bool DrmObject::updateProperties()
+std::pair<DrmUniquePtr<drmModePropertyRes>, uint64_t> DrmObject::findProp(const QByteArray &name) const
 {
     DrmUniquePtr<drmModeObjectProperties> properties(drmModeObjectGetProperties(m_gpu->fd(), m_id, m_objectType));
     if (!properties) {
         qCWarning(KWIN_DRM) << "Failed to get properties for object" << m_id;
-        return false;
+        return {nullptr, 0};
     }
+    for (uint32_t drmPropIndex = 0; drmPropIndex < properties->count_props; drmPropIndex++) {
+        DrmUniquePtr<drmModePropertyRes> prop(drmModeGetProperty(m_gpu->fd(), properties->props[drmPropIndex]));
+        if (!prop) {
+            qCWarning(KWIN_DRM, "Getting property %d of object %d failed!", drmPropIndex, m_id);
+            continue;
+        }
+        if (name == prop->name) {
+            return {std::move(prop), properties->prop_values[drmPropIndex]};
+        }
+    }
+    return {nullptr, 0};
+}
+
+bool DrmObject::updateProperties()
+{
     for (int propIndex = 0; propIndex < m_propertyDefinitions.count(); propIndex++) {
         const PropertyDefinition &def = m_propertyDefinitions[propIndex];
-        bool found = false;
-        for (uint32_t drmPropIndex = 0; drmPropIndex < properties->count_props; drmPropIndex++) {
-            DrmUniquePtr<drmModePropertyRes> prop(drmModeGetProperty(m_gpu->fd(), properties->props[drmPropIndex]));
-            if (!prop) {
-                qCWarning(KWIN_DRM, "Getting property %d of object %d failed!", drmPropIndex, m_id);
-                continue;
+        if (const auto [prop, value] = findProp(def.name); prop != nullptr) {
+            if (m_props[propIndex]) {
+                m_props[propIndex]->setCurrent(value);
+            } else {
+                m_props[propIndex] = std::make_unique<DrmProperty>(this, prop.get(), value, def.enumNames);
             }
-            if (def.name == prop->name) {
-                if (m_props[propIndex]) {
-                    m_props[propIndex]->setCurrent(properties->prop_values[drmPropIndex]);
-                } else {
-                    m_props[propIndex] = std::make_unique<DrmProperty>(this, prop.get(), properties->prop_values[drmPropIndex], def.enumNames);
-                }
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
+        } else {
             m_props[propIndex].reset();
         }
     }

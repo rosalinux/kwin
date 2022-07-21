@@ -109,6 +109,8 @@ protected:
     std::vector<std::unique_ptr<DrmProperty>> m_props;
 
 private:
+    std::pair<DrmUniquePtr<drmModePropertyRes>, uint64_t> findProp(const QByteArray &name) const;
+
     DrmGpu *m_gpu;
     const uint32_t m_id;
     const uint32_t m_objectType;
