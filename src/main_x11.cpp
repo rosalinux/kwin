@@ -185,6 +185,7 @@ ApplicationX11::~ApplicationX11()
     setTerminating();
     destroyPlugins();
     destroyCompositor();
+    destroyColorManager();
     destroyWorkspace();
     if (!owner.isNull() && owner->ownerWindow() != XCB_WINDOW_NONE) { // If there was no --replace (no new WM)
         Xcb::setInputFocus(XCB_INPUT_FOCUS_POINTER_ROOT);
@@ -201,6 +202,7 @@ void ApplicationX11::lostSelection()
     sendPostedEvents();
     destroyPlugins();
     destroyCompositor();
+    destroyColorManager();
     destroyWorkspace();
     // Remove windowmanager privileges
     Xcb::selectInput(kwinApp()->x11RootWindow(), XCB_EVENT_MASK_PROPERTY_CHANGE);
@@ -227,8 +229,6 @@ void ApplicationX11::performStartup()
             std::exit(1);
         }
 
-        createColorManager();
-
         // Check  whether another windowmanager is running
         const uint32_t maskValues[] = {XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT};
         ScopedCPointer<xcb_generic_error_t> redirectCheck(xcb_request_check(kwinApp()->x11Connection(),
@@ -245,6 +245,7 @@ void ApplicationX11::performStartup()
 
         createInput();
         createWorkspace();
+        createColorManager();
         createPlugins();
 
         Xcb::sync(); // Trigger possible errors, there's still a chance to abort
