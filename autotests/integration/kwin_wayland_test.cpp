@@ -86,6 +86,7 @@ WaylandTestApplication::~WaylandTestApplication()
     delete m_xwayland;
     m_xwayland = nullptr;
     destroyVirtualInputDevices();
+    destroyColorManager();
     destroyWorkspace();
     destroyInputMethod();
     destroyCompositor();
@@ -134,7 +135,6 @@ void WaylandTestApplication::performStartup()
         std::exit(1);
     }
     waylandServer()->initPlatform();
-    createColorManager();
 
     // try creating the Wayland Backend
     createInput();
@@ -168,6 +168,7 @@ void WaylandTestApplication::continueStartupWithScene()
     disconnect(Compositor::self(), &Compositor::sceneCreated, this, &WaylandTestApplication::continueStartupWithScene);
 
     createWorkspace();
+    createColorManager();
     createPlugins();
 
     if (!waylandServer()->start()) {
