@@ -11,7 +11,6 @@
 #include "kwinanimationeffect.h"
 #include "kwinglutils.h"
 #include "anidata_p.h"
-#include "kwindeformeffectprivate_p.h"
 
 #include <QDateTime>
 #include <QTimer>
@@ -29,62 +28,15 @@ QDebug operator<<(QDebug dbg, const KWin::FPx2 &fpx2)
 
 QElapsedTimer AnimationEffect::s_clock;
 
-class AnimationEffectPrivate : public DeformEffectPrivate
+class AnimationEffectPrivate
 {
 public:
-    AnimationEffectPrivate(AnimationEffect *effect)
-        : q(effect)
+    AnimationEffectPrivate()
     {
-        live = false;
         m_animationsTouched = m_isInitialized = false;
         m_justEndedAnimation = 0;
     }
-    void redirect(EffectWindow *window, int textureWidth, int textureHeight)
-    {
-        DeformOffscreenData *&offscreenData = windows[window];
-        if (offscreenData) {
-            //             offscreenData->isDirty = true;
-            //             effects->makeOpenGLContextCurrent();
-            //             maybeRender(window, offscreenData);
-            return;
-        }
-        offscreenData = new DeformOffscreenData;
 
-        if (windows.count() == 1) {
-            setupConnections();
-        }
-
-        offscreenData->textureSize = QSize(textureWidth, textureHeight);
-        effects->makeOpenGLContextCurrent();
-        maybeRender(window, offscreenData);
-    }
-
-    void unredirect(EffectWindow *window)
-    {
-        delete windows.take(window);
-        if (windows.isEmpty()) {
-            destroyConnections();
-        }
-    }
-
-    void setupConnections()
-    {
-        windowDeletedConnection =
-            QObject::connect(effects, &EffectsHandler::windowDeleted, q, [this](EffectWindow *window) {
-                unredirect(window);
-            });
-    }
-
-    void destroyConnections()
-    {
-        QObject::disconnect(windowDamagedConnection);
-        QObject::disconnect(windowDeletedConnection);
-
-        windowDamagedConnection = {};
-        windowDeletedConnection = {};
-    }
-
-    AnimationEffect *q;
     AnimationEffect::AniMap m_animations;
     static quint64 m_animCounter;
     quint64 m_justEndedAnimation; // protect against cancel
@@ -95,7 +47,8 @@ public:
 quint64 AnimationEffectPrivate::m_animCounter = 0;
 
 AnimationEffect::AnimationEffect()
-    : d_ptr(new AnimationEffectPrivate(this))
+    : OffscreenEffect()
+    , d_ptr(new AnimationEffectPrivate())
 {
     if (!s_clock.isValid()) {
         s_clock.start();
@@ -291,7 +244,7 @@ quint64 AnimationEffect::p_animate(EffectWindow *w, Attribute a, uint meta, int 
         if (entry != d->m_animations.constEnd()) {
             for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
                 if (anim->attribute == Size) {
-                    d->redirect(w, qreal(anim->from[0]) / anim->to[0] * w->expandedGeometry().width(), qreal(anim->from[1]) / anim->to[1] * w->expandedGeometry().height());
+                    OffscreenEffect::redirect(w);
                     break;
                 }
             }
@@ -453,7 +406,7 @@ bool AnimationEffect::complete(quint64 animationId)
 
         animIt->timeLine.setElapsed(animIt->timeLine.duration());
         qWarning() << "UNREDIRECTING" << entryIt.key();
-        d->unredirect(entryIt.key());
+        unredirect(entryIt.key());
 
         return true;
     }
@@ -722,14 +675,14 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
         effects->paintWindow(w, mask, region, data);
         //data.setOpacity(1-data.crossFadeProgress());
         data.setOpacity(0.8);
-        DeformOffscreenData *offscreenData = d->windows.value(w);
-        if (!offscreenData) {
-            effects->drawWindow(w, mask, region, data);
-            return;
-        }
+        /* DeformOffscreenData *offscreenData = d->windows.value(w);
+         if (!offscreenData) {
+             effects->drawWindow(w, mask, region, data);
+             return;
+         }*/
 
-        const QRect expandedGeometry = w->expandedGeometry();
-        const QRect frameGeometry = w->frameGeometry();
+        const auto expandedGeometry = w->expandedGeometry();
+        const auto frameGeometry = w->frameGeometry();
 
         QRectF visibleRect = expandedGeometry;
         visibleRect.moveTopLeft(expandedGeometry.topLeft() - frameGeometry.topLeft());
@@ -743,8 +696,9 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
         quads.append(quad);
         //qWarning()<<"AAA"<<visibleRect<<offscreenData->texture->size();
 
-        //GLTexture *texture = d->maybeRender(w, offscreenData);
-        d->paint(w, offscreenData->texture.data(), region, data, quads);
+        // GLTexture *texture = d->maybeRender(w, offscreenData);
+        //  d->paint(w, offscreenData->texture.data(), region, data, quads);
+        OffscreenEffect::drawWindow(w, mask, region, data);
     } else {
         effects->paintWindow(w, mask, region, data);
     }

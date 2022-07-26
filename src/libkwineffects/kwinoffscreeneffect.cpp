@@ -8,8 +8,6 @@
 #include "kwingltexture.h"
 #include "kwinglutils.h"
 
-#include "kwindeformeffectprivate_p.h"
-
 namespace KWin
 {
 
