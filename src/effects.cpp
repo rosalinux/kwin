@@ -410,6 +410,8 @@ void EffectsHandlerImpl::paintWindow(EffectWindow *w, int mask, const QRegion &r
     } else {
         m_scene->finalPaintWindow(static_cast<EffectWindowImpl *>(w), mask, region, data);
     }
+    w->setLastPaintedFrameGeometry(w->frameGeometry());
+    w->setLastPaintedExpandedGeometry(w->expandedGeometry());
 }
 
 void EffectsHandlerImpl::postPaintWindow(EffectWindow *w)

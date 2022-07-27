@@ -13,6 +13,8 @@ namespace KWin
 
 struct OffscreenData
 {
+    QRectF redirectedFrameGeometry;
+    QRectF redirectedExpandedGeometry;
     QScopedPointer<GLTexture> texture;
     QScopedPointer<GLFramebuffer> fbo;
     bool isDirty = true;
@@ -22,6 +24,11 @@ struct OffscreenData
 class OffscreenEffectPrivate
 {
 public:
+    OffscreenEffectPrivate(OffscreenEffect *effect)
+        : q(effect)
+    {
+    }
+    OffscreenEffect *q;
     QHash<EffectWindow *, OffscreenData *> windows;
     QMetaObject::Connection windowDamagedConnection;
     QMetaObject::Connection windowDeletedConnection;
@@ -35,7 +42,7 @@ public:
 
 OffscreenEffect::OffscreenEffect(QObject *parent)
     : Effect(parent)
-    , d(new OffscreenEffectPrivate)
+    , d(new OffscreenEffectPrivate(this))
 {
 }
 
@@ -51,8 +58,21 @@ bool OffscreenEffect::supported()
 
 void OffscreenEffect::setLive(bool live)
 {
+    if (live == d->live) {
+        return;
+    }
+
     Q_ASSERT(d->windows.isEmpty());
     d->live = live;
+}
+
+QRectF OffscreenEffect::redirectedFrameGeometry(EffectWindow *window) const
+{
+    if (d->live || !d->windows.contains(window)) {
+        return window->frameGeometry();
+    }
+
+    return d->windows[window]->redirectedFrameGeometry;
 }
 
 void OffscreenEffect::redirect(EffectWindow *window)
@@ -68,8 +88,12 @@ void OffscreenEffect::redirect(EffectWindow *window)
     }
 
     if (!d->live) {
+        qWarning() << "JKKfKK" << window->frameGeometry() << window->lastPaintedFrameGeometry();
+        offscreenData->redirectedExpandedGeometry = window->lastPaintedExpandedGeometry();
+        offscreenData->redirectedFrameGeometry = window->lastPaintedFrameGeometry();
         effects->makeOpenGLContextCurrent();
         d->maybeRender(window, offscreenData);
+        qWarning() << "texture" << offscreenData->texture->size();
     }
 }
 
@@ -91,8 +115,11 @@ void OffscreenEffect::apply(EffectWindow *window, int mask, WindowPaintData &dat
 
 GLTexture *OffscreenEffectPrivate::maybeRender(EffectWindow *window, OffscreenData *offscreenData)
 {
-    const QRect geometry = window->expandedGeometry().toAlignedRect();
-    QSize textureSize = geometry.size();
+    // QMArginsF oldMargins()
+    // const QRect geometry = window->expandedGeometry().toAlignedRect();
+    // QSize textureSize = geometry.size();
+    const QRect geometry = offscreenData->redirectedExpandedGeometry.toAlignedRect();
+    QSize textureSize = offscreenData->redirectedExpandedGeometry.size().toSize();
 
     if (const EffectScreen *screen = window->screen()) {
         textureSize *= screen->devicePixelRatio();
@@ -112,7 +139,10 @@ GLTexture *OffscreenEffectPrivate::maybeRender(EffectWindow *window, OffscreenDa
         glClear(GL_COLOR_BUFFER_BIT);
 
         QMatrix4x4 projectionMatrix;
-        projectionMatrix.ortho(QRect(0, 0, geometry.width(), geometry.height()));
+        // projectionMatrix.ortho(QRect(0, 0, qMin(geometry.width(), qRound(offscreenData->redirectedExpandedGeometry.width())), qMin(geometry.height(), qRound(offscreenData->redirectedExpandedGeometry.height()))));
+        // projectionMatrix.ortho(QRect(0, 0, geometry.width(), geometry.height()));
+        projectionMatrix.ortho(QRect(0, 0, offscreenData->redirectedExpandedGeometry.width(), offscreenData->redirectedExpandedGeometry.height()));
+        // projectionMatrix.ortho(QRect(0, 0, window->expandedGeometry().width(), window->expandedGeometry().height()));
 
         WindowPaintData data;
         data.setXTranslation(-geometry.x());
@@ -121,7 +151,8 @@ GLTexture *OffscreenEffectPrivate::maybeRender(EffectWindow *window, OffscreenDa
         data.setProjectionMatrix(projectionMatrix);
 
         const int mask = Effect::PAINT_WINDOW_TRANSFORMED | Effect::PAINT_WINDOW_TRANSLUCENT;
-        effects->drawWindow(window, mask, infiniteRegion(), data);
+        // effects->drawWindow(window, mask, infiniteRegion(), data);
+        q->drawWindow(window, mask, infiniteRegion(), data);
 
         GLFramebuffer::popFramebuffer();
         offscreenData->isDirty = false;
@@ -157,11 +188,12 @@ void OffscreenEffectPrivate::paint(EffectWindow *window, GLTexture *texture, con
 
     const qreal rgb = data.brightness() * data.opacity();
     const qreal a = data.opacity();
-
+    qWarning() << "translation" << data.xTranslation() << data.yTranslation();
     QMatrix4x4 mvp = data.screenProjectionMatrix();
     mvp.translate(window->x(), window->y());
 
     shader->setUniform(GLShader::ModelViewProjectionMatrix, mvp * data.toMatrix());
+
     shader->setUniform(GLShader::ModulationConstant, QVector4D(rgb, rgb, rgb, a));
     shader->setUniform(GLShader::Saturation, data.saturation());
     shader->setUniform(GLShader::TextureWidth, texture->width());
@@ -196,8 +228,14 @@ void OffscreenEffect::drawWindow(EffectWindow *window, int mask, const QRegion &
         return;
     }
 
-    const QRectF expandedGeometry = window->expandedGeometry();
-    const QRectF frameGeometry = window->frameGeometry();
+    //     const QRectF expandedGeometry = window->expandedGeometry();
+    //     const QRectF frameGeometry = window->frameGeometry();
+    //
+    const QRectF expandedGeometry = offscreenData->redirectedExpandedGeometry;
+    const QRectF frameGeometry = offscreenData->redirectedFrameGeometry;
+
+    // const QRectF expandedGeometry = offscreenData->redirectedExpandedGeometry.width() > window->expandedGeometry().width() ? offscreenData->redirectedExpandedGeometry : window->expandedGeometry();
+    //   const QRectF frameGeometry = offscreenData->redirectedFrameGeometry.width() > window->frameGeometry().width() ? offscreenData->redirectedFrameGeometry : window->frameGeometry();
 
     QRectF visibleRect = expandedGeometry;
     visibleRect.moveTopLeft(expandedGeometry.topLeft() - frameGeometry.topLeft());
@@ -212,11 +250,15 @@ void OffscreenEffect::drawWindow(EffectWindow *window, int mask, const QRegion &
     apply(window, mask, data, quads);
 
     GLTexture *texture = d->maybeRender(window, offscreenData);
+    qWarning() << "PAINING TEXTURE" << texture->size();
     d->paint(window, texture, region, data, quads, offscreenData->shader);
 }
 
 void OffscreenEffect::handleWindowDamaged(EffectWindow *window)
 {
+    if (!d->live) {
+        return;
+    }
     OffscreenData *offscreenData = d->windows.value(window);
     if (offscreenData) {
         offscreenData->isDirty = true;

@@ -103,7 +103,7 @@ var morphingEffect = {
         if (window.fadeAnimation) {
             couldRetarget = retarget(window.fadeAnimation[0], 1.0, morphingEffect.duration);
         }
-        print("AAAAAAAA doing the effect"+oldGeometry)
+        print("AAAAAAAA doing morphing effect "+window.geometry+" "+oldGeometry)
         if (!couldRetarget) {
             window.fadeAnimation = animate({
                 window: window,

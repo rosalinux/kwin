@@ -241,6 +241,7 @@ quint64 AnimationEffect::p_animate(EffectWindow *w, Attribute a, uint meta, int 
         //previousPixmap = PreviousWindowPixmapLockPtr::create(w);
         qWarning() << "REDIRECTING" << w << w->frameGeometry() << w->bufferGeometry();
         AniMap::const_iterator entry = d->m_animations.constFind(w);
+        setLive(false);
         if (entry != d->m_animations.constEnd()) {
             for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
                 if (anim->attribute == Size) {
@@ -544,11 +545,17 @@ static inline float geometryCompensation(int flags, float v)
     return 0.5 * (1.0 - v); // half compensation
 }
 
-void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
+void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data)
 {
     Q_D(AnimationEffect);
     bool hasFade = false;
     AniMap::const_iterator entry = d->m_animations.constFind(w);
+    auto finalRegion = region;
+    qreal fromWidth = -1;
+    qreal fromHeight = -1;
+    qreal fromX = -1;
+    qreal fromY = -1;
+
     if (entry != d->m_animations.constEnd()) {
         for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
 
@@ -588,10 +595,15 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
                 break;
             }
             case Clip:
-                region = clipRect(w->expandedGeometry().toAlignedRect(), *anim);
+                finalRegion = clipRect(w->expandedGeometry().toAlignedRect(), *anim);
                 break;
             case Translation:
+                qWarning() << "before" << data.xTranslation();
                 data += QPointF(interpolated(*anim, 0), interpolated(*anim, 1));
+                qWarning() << "after" << data.xTranslation();
+                qWarning() << "BEGIN TRANSLATION" << anim->from[0] << anim->from[1] << anim->to[0] << anim->to[1] << interpolated(*anim, 0);
+                fromX = w->frameGeometry().x() + anim->from[0];
+                fromY = w->frameGeometry().y() + anim->from[1];
                 break;
             case Size: {
                 FPx2 dest = anim->from + progress(*anim) * (anim->to - anim->from);
@@ -601,11 +613,13 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
                     f = dest[0] / sz.width();
                     data.translate(geometryCompensation(anim->meta & AnimationEffect::Horizontal, f) * sz.width());
                     data.setXScale(data.xScale() * f);
+                    fromWidth = anim->from[0];
                 }
                 if (anim->from[1] >= 0.0 && anim->to[1] >= 0.0) { // resize y
                     f = dest[1] / sz.height();
                     data.translate(0.0, geometryCompensation(anim->meta & AnimationEffect::Vertical, f) * sz.height());
                     data.setYScale(data.yScale() * f);
+                    fromHeight = anim->from[1];
                 }
                 break;
             }
@@ -617,12 +631,14 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
                     const qreal x[2] = {xCoord(geo, metaData(SourceAnchor, anim->meta)),
                                         xCoord(geo, metaData(TargetAnchor, anim->meta))};
                     data.translate(dest - (x[0] + prgrs * (x[1] - x[0])));
+                    fromX = anim->from[0];
                 }
                 if (anim->from[1] >= 0.0 && anim->to[1] >= 0.0) {
                     float dest = interpolated(*anim, 1);
                     const qreal y[2] = {yCoord(geo, metaData(SourceAnchor, anim->meta)),
                                         yCoord(geo, metaData(TargetAnchor, anim->meta))};
                     data.translate(0.0, dest - (y[0] + prgrs * (y[1] - y[0])));
+                    fromY = anim->from[1];
                 }
                 break;
             }
@@ -648,6 +664,7 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
                 break;
             case CrossFadePrevious:
                 data.setCrossFadeProgress(progress(*anim));
+
                 hasFade = true;
                 break;
             case Shader:
@@ -672,12 +689,13 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
     }
 
     if (hasFade) {
-        effects->paintWindow(w, mask, region, data);
-        //data.setOpacity(1-data.crossFadeProgress());
+        // Effect::drawWindow(w, mask, finalRegion, data);
+        // effects->drawWindow(w, mask, finalRegion, data);
+        data.setOpacity(1 - data.crossFadeProgress());
         data.setOpacity(0.8);
         /* DeformOffscreenData *offscreenData = d->windows.value(w);
          if (!offscreenData) {
-             effects->drawWindow(w, mask, region, data);
+             effects->drawWindow(w, mask, finalRegion, data);
              return;
          }*/
 
@@ -694,13 +712,21 @@ void AnimationEffect::paintWindow(EffectWindow *w, int mask, QRegion region, Win
 
         WindowQuadList quads;
         quads.append(quad);
-        //qWarning()<<"AAA"<<visibleRect<<offscreenData->texture->size();
-
-        // GLTexture *texture = d->maybeRender(w, offscreenData);
-        //  d->paint(w, offscreenData->texture.data(), region, data, quads);
-        OffscreenEffect::drawWindow(w, mask, region, data);
+        qWarning() << "BBBB" << fromX << fromY << fromWidth << fromHeight;
+        qWarning() << "data" << data.xTranslation() << data.yTranslation();
+        data.setXScale(1);
+        data.setYScale(1);
+        data.setXTranslation(data.xTranslation() + fromX);
+        data.setYTranslation(data.yTranslation() + fromY);
+        data.setXTranslation(0);
+        data.setYTranslation(0);
+        QRectF clipRect = finalRegion.boundingRect();
+        // finalRegion = QRectF(clipRect.topLeft(), clipRect.size() * data.crossFadeProgress() + QSize(fromX+fromWidth, fromY+fromHeight) * (1 - data.crossFadeProgress())).toAlignedRect();
+        //  GLTexture *texture = d->maybeRender(w, offscreenData);
+        //   d->paint(w, offscreenData->texture.data(), finalRegion, data, quads);
+        OffscreenEffect::drawWindow(w, mask, finalRegion, data);
     } else {
-        effects->paintWindow(w, mask, region, data);
+        effects->drawWindow(w, mask, finalRegion, data);
     }
 }
 
@@ -722,8 +748,10 @@ void AnimationEffect::postPaintScreen()
             EffectWindow *window = entry.key();
             d->m_justEndedAnimation = anim->id;
             if (anim->shader && std::none_of(entry->first.begin(), entry->first.end(), [anim] (const auto &other) { return anim->id != other.id && other.shader; })) {
+                qWarning() << "UNREDIRECTING";
                 unredirect(window);
             }
+            unredirect(window);
             animationEnded(window, anim->attribute, anim->meta);
             d->m_justEndedAnimation = 0;
             // NOTICE animationEnded is an external call and might have called "::animate"

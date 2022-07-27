@@ -2332,6 +2332,10 @@ public:
     explicit EffectWindow(QObject *parent = nullptr);
     ~EffectWindow() override;
 
+    void setLastPaintedFrameGeometry(const QRectF &r);
+    QRectF lastPaintedFrameGeometry() const;
+    void setLastPaintedExpandedGeometry(const QRectF &r);
+    QRectF lastPaintedExpandedGeometry() const;
     Q_SCRIPTABLE virtual void addRepaint(const QRect &r) = 0;
     Q_SCRIPTABLE void addRepaint(int x, int y, int w, int h);
     Q_SCRIPTABLE virtual void addRepaintFull() = 0;

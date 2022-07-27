@@ -43,6 +43,8 @@ public:
      */
     void setLive(bool live);
 
+    QRectF redirectedFrameGeometry(EffectWindow *window) const;
+
 protected:
     void drawWindow(EffectWindow *window, int mask, const QRegion &region, WindowPaintData &data) override;
 
@@ -78,6 +80,7 @@ private:
     void destroyConnections();
 
     QScopedPointer<OffscreenEffectPrivate> d;
+    friend OffscreenEffectPrivate;
 };
 
 } // namespace KWin

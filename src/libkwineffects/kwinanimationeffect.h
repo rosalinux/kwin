@@ -325,7 +325,7 @@ public:
     QString debug(const QString &parameter) const override;
     void prePaintScreen(ScreenPrePaintData &data, std::chrono::milliseconds presentTime) override;
     void prePaintWindow(EffectWindow *w, WindowPrePaintData &data, std::chrono::milliseconds presentTime) override;
-    void paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data) override;
+    void drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) override;
     // void drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) override;
     void postPaintScreen() override;
 
