@@ -15,6 +15,28 @@ var morphingEffect = {
         morphingEffect.duration = animationTime(150);
     },
 
+    handleFrameGeometryAboutToChange: function (window) {
+        //only tooltips and notifications
+        if (!window.tooltip && !window.notification && !window.criticalNotification) {
+            return;
+        }
+        var couldRetarget = false;
+        if (window.fadeAnimation) {
+          //  couldRetarget = retarget(window.fadeAnimation[0], 1.0, morphingEffect.duration);
+        }
+        print("AAAAAAAA doing morphing effect "+window.geometry)
+        if (!couldRetarget) {
+            window.fadeAnimation = animate({
+                window: window,
+                duration: morphingEffect.duration,
+                animations: [{
+                    type: Effect.CrossFadePrevious,
+                    to: 1.0,
+                    from: 0.0
+                }]
+            });
+        }
+    },
     handleFrameGeometryChanged: function (window, oldGeometry) {
         //only tooltips and notifications
         if (!window.tooltip && !window.notification && !window.criticalNotification) {
@@ -32,7 +54,7 @@ var morphingEffect = {
                 delete window.moveAnimation;
             }
             if (window.fadeAnimation) {
-                delete window.fadeAnimation;
+           //     delete window.fadeAnimation;
             }
 
             return;
@@ -99,26 +121,27 @@ var morphingEffect = {
 
         }
 
-        couldRetarget = false;
-        if (window.fadeAnimation) {
-            couldRetarget = retarget(window.fadeAnimation[0], 1.0, morphingEffect.duration);
-        }
-        print("AAAAAAAA doing morphing effect "+window.geometry+" "+oldGeometry)
-        if (!couldRetarget) {
-            window.fadeAnimation = animate({
-                window: window,
-                duration: morphingEffect.duration,
-                animations: [{
-                    type: Effect.CrossFadePrevious,
-                    to: 1.0,
-                    from: 0.0
-                }]
-            });
-        }
+//         couldRetarget = false;
+//         if (window.fadeAnimation) {
+//             couldRetarget = retarget(window.fadeAnimation[0], 1.0, morphingEffect.duration);
+//         }
+//         print("AAAAAAAA doing morphing effect "+window.geometry+" "+oldGeometry)
+//         if (!couldRetarget) {
+//             window.fadeAnimation = animate({
+//                 window: window,
+//                 duration: morphingEffect.duration,
+//                 animations: [{
+//                     type: Effect.CrossFadePrevious,
+//                     to: 1.0,
+//                     from: 0.0
+//                 }]
+//             });
+//         }
     },
 
     init: function () {
         effect.configChanged.connect(morphingEffect.loadConfig);
+        effects.windowFrameGeometryAboutToChange.connect(morphingEffect.handleFrameGeometryAboutToChange);
         effects.windowFrameGeometryChanged.connect(morphingEffect.handleFrameGeometryChanged);
     }
 };

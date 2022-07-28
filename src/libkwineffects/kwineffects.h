@@ -1598,6 +1598,7 @@ Q_SIGNALS:
      * @since 4.7
      */
     void windowMaximizedStateChanged(KWin::EffectWindow *w, bool horizontal, bool vertical);
+    void windowMaximizedStateAboutToChange(KWin::EffectWindow *w, bool horizontal, bool vertical);
     /**
      * Signal emitted when the geometry or shape of a window changed.
      * This is caused if the window changes geometry without user interaction.
@@ -1616,6 +1617,7 @@ Q_SIGNALS:
      * @since 5.19
      */
     void windowFrameGeometryChanged(KWin::EffectWindow *window, const QRectF &oldGeometry);
+    void windowFrameGeometryAboutToChange(KWin::EffectWindow *window);
     /**
      * Signal emitted when the windows opacity is changed.
      * @param w The window whose opacity level is changed.

@@ -16,12 +16,55 @@ class MaximizeEffect {
         effects.windowMaximizedStateChanged.connect(
                 this.onWindowMaximizedStateChanged.bind(this));
         effect.animationEnded.connect(this.restoreForceBlurState.bind(this));
+        effects.windowMaximizedStateAboutToChange.connect(
+                this.onWindowMaximizedStateAboutToChange.bind(this));
 
         this.loadConfig();
     }
 
     loadConfig() {
         this.duration = animationTime(250);
+    }
+
+    onWindowMaximizedStateAboutToChange(window) {
+       /* window.maximizeAnimation1 = animate({
+            window: window,
+            duration: this.duration,
+            animations: [{
+                type: Effect.Size,
+                to: {
+                    value1: window.geometry.width,
+                    value2: window.geometry.height
+                },
+                from: {
+                    value1: window.geometry.width,
+                    value2: window.geometry.height
+                },
+                curve: QEasingCurve.OutCubic
+            }, {
+                type: Effect.Translation,
+                to: {
+                    value1: 0,
+                    value2: 0
+                },
+                from: {
+                    value1: 0,
+                    value2: 0
+                },
+                curve: QEasingCurve.OutCubic
+            }]
+        });*/
+print("ABOUTTOCHANGE")
+        window.maximizeAnimation2 =animate({
+                window: window,
+                duration: this.duration,
+                animations: [{
+                    type: Effect.CrossFadePrevious,
+                    to: 1.0,
+                    from: 0.0,
+                    curve: QEasingCurve.OutCubic
+                }]
+            });
     }
 
     onWindowMaximizedStateChanged(window) {
@@ -62,7 +105,8 @@ class MaximizeEffect {
                 curve: QEasingCurve.OutCubic
             }]
         });
-        if (!window.resize) {
+        //retarget(window.maximizeAnimation1[0], {value1: newGeometry.width,value2: newGeometry.height}, this.duration)
+      /*  if (!window.resize) {
             window.maximizeAnimation2 =animate({
                 window: window,
                 duration: this.duration,
@@ -73,7 +117,8 @@ class MaximizeEffect {
                     curve: QEasingCurve.OutCubic
                 }]
             });
-        }
+        }*/
+      retarget(window.maximizeAnimation2, 1.0, this.duration);
     }
 
     restoreForceBlurState(window) {
@@ -81,7 +126,7 @@ class MaximizeEffect {
     }
 
     onWindowFrameGeometryChanged(window, oldGeometry) {
-        if (window.maximizeAnimation1) {
+        /*if (window.maximizeAnimation1) {
             if (window.geometry.width != window.oldGeometry.width ||
                 window.geometry.height != window.oldGeometry.height) {
                 cancel(window.maximizeAnimation1);
@@ -91,7 +136,7 @@ class MaximizeEffect {
                     delete window.maximizeAnimation2;
                 }
             }
-        }
+        }*/
         window.oldGeometry = Object.assign({}, window.geometry);
         window.olderGeometry = Object.assign({}, oldGeometry);
     }

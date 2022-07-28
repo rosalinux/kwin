@@ -242,14 +242,15 @@ quint64 AnimationEffect::p_animate(EffectWindow *w, Attribute a, uint meta, int 
         qWarning() << "REDIRECTING" << w << w->frameGeometry() << w->bufferGeometry();
         AniMap::const_iterator entry = d->m_animations.constFind(w);
         setLive(false);
-        if (entry != d->m_animations.constEnd()) {
+        OffscreenEffect::redirect(w);
+        /*if (entry != d->m_animations.constEnd()) {
             for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
                 if (anim->attribute == Size) {
                     OffscreenEffect::redirect(w);
                     break;
                 }
             }
-        }
+        }*/
     }
 
     it->first.append(AniData(
@@ -555,6 +556,7 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
     qreal fromHeight = -1;
     qreal fromX = -1;
     qreal fromY = -1;
+    qreal translationProgess = 0.0;
 
     if (entry != d->m_animations.constEnd()) {
         for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
@@ -598,6 +600,7 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
                 finalRegion = clipRect(w->expandedGeometry().toAlignedRect(), *anim);
                 break;
             case Translation:
+                translationProgess = progress(*anim);
                 qWarning() << "before" << data.xTranslation();
                 data += QPointF(interpolated(*anim, 0), interpolated(*anim, 1));
                 qWarning() << "after" << data.xTranslation();
@@ -689,7 +692,7 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
     }
 
     if (hasFade) {
-        // Effect::drawWindow(w, mask, finalRegion, data);
+        Effect::drawWindow(w, mask, finalRegion, data);
         // effects->drawWindow(w, mask, finalRegion, data);
         data.setOpacity(1 - data.crossFadeProgress());
         data.setOpacity(0.8);
@@ -701,29 +704,34 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
 
         const auto expandedGeometry = w->expandedGeometry();
         const auto frameGeometry = w->frameGeometry();
+        const auto redirectedExpandedGeometry = OffscreenEffect::redirectedExpandedGeometry(w);
+        const auto redirectedFrameGeometry = OffscreenEffect::redirectedFrameGeometry(w);
 
-        QRectF visibleRect = expandedGeometry;
-        visibleRect.moveTopLeft(expandedGeometry.topLeft() - frameGeometry.topLeft());
-        WindowQuad quad;
-        quad[0] = WindowVertex(visibleRect.topLeft(), QPointF(0, 0));
-        quad[1] = WindowVertex(visibleRect.topRight(), QPointF(1, 0));
-        quad[2] = WindowVertex(visibleRect.bottomRight(), QPointF(1, 1));
-        quad[3] = WindowVertex(visibleRect.bottomLeft(), QPointF(0, 1));
+        //   qWarning() << "BBBB" << fromX << fromY << fromWidth << fromHeight;
+        //  qWarning() << "data" << data.xTranslation() << data.yTranslation();
+        /*   data.setXScale(1);
+           data.setYScale(1);
+           data.setXTranslation(data.xTranslation() + fromX);
+           data.setYTranslation(data.yTranslation() + fromY);
+           data.setXTranslation(0);
+           data.setYTranslation(0);*/
+        const QSizeF sizeRatio(redirectedFrameGeometry.width() / frameGeometry.width(),
+                               redirectedFrameGeometry.height() / frameGeometry.height());
 
-        WindowQuadList quads;
-        quads.append(quad);
-        qWarning() << "BBBB" << fromX << fromY << fromWidth << fromHeight;
-        qWarning() << "data" << data.xTranslation() << data.yTranslation();
-        data.setXScale(1);
-        data.setYScale(1);
-        data.setXTranslation(data.xTranslation() + fromX);
-        data.setYTranslation(data.yTranslation() + fromY);
-        data.setXTranslation(0);
-        data.setYTranslation(0);
-        QRectF clipRect = finalRegion.boundingRect();
-        // finalRegion = QRectF(clipRect.topLeft(), clipRect.size() * data.crossFadeProgress() + QSize(fromX+fromWidth, fromY+fromHeight) * (1 - data.crossFadeProgress())).toAlignedRect();
-        //  GLTexture *texture = d->maybeRender(w, offscreenData);
-        //   d->paint(w, offscreenData->texture.data(), finalRegion, data, quads);
+        /*
+        data.setXScale(data.xScale() * (expandedGeometry.width() / frameGeometry.width()));
+        data.setYScale(data.yScale() * (expandedGeometry.height() / frameGeometry.height()));
+
+        data.setXTranslation(data.xTranslation() +
+            (redirectedExpandedGeometry.x() - expandedGeometry.x()) * (1-translationProgess) - (frameGeometry.x() - expandedGeometry.x())*(frameGeometry.width()/redirectedFrameGeometry.width()));
+
+        data.setYTranslation(data.yTranslation() +
+            (redirectedExpandedGeometry.y() - expandedGeometry.y()) * (1-translationProgess) - (frameGeometry.y() - expandedGeometry.y())
+        );
+*/
+
+        //  qWarning()<<"CCCC"<<sizeRatio<<translationProgess<<((expandedGeometry.width() - frameGeometry.width()) * sizeRatio.width())<<expandedGeometry.width() / frameGeometry.width();
+
         OffscreenEffect::drawWindow(w, mask, finalRegion, data);
     } else {
         effects->drawWindow(w, mask, finalRegion, data);

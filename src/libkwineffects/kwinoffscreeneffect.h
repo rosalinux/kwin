@@ -44,6 +44,7 @@ public:
     void setLive(bool live);
 
     QRectF redirectedFrameGeometry(EffectWindow *window) const;
+    QRectF redirectedExpandedGeometry(EffectWindow *window) const;
 
 protected:
     void drawWindow(EffectWindow *window, int mask, const QRegion &region, WindowPaintData &data) override;

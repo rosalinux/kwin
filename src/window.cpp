@@ -108,6 +108,7 @@ Window::Window()
 
     // replace on-screen-display on size changes
     connect(this, &Window::frameGeometryChanged, this, [this](Window *c, const QRectF &old) {
+        qWarning() << "AAAAAA" << sender();
         Q_UNUSED(c)
         if (isOnScreenDisplay() && !frameGeometry().isEmpty() && old.size() != frameGeometry().size() && isPlaceable()) {
             GeometryUpdatesBlocker blocker(this);
@@ -1557,6 +1558,7 @@ void Window::blockGeometryUpdates(bool block)
     } else {
         if (--m_blockGeometryUpdates == 0) {
             if (m_pendingMoveResizeMode != MoveResizeMode::None) {
+                Q_EMIT frameGeometryAboutToChange(this);
                 moveResizeInternal(moveResizeGeometry(), m_pendingMoveResizeMode);
                 m_pendingMoveResizeMode = MoveResizeMode::None;
             }
@@ -1572,6 +1574,7 @@ void Window::maximize(MaximizeMode m)
 void Window::setMaximize(bool vertically, bool horizontally)
 {
     // changeMaximize() flips the state, so change from set->flip
+    Q_EMIT clientMaximizedStateAboutToChange(this, MaximizeMode((vertically ? MaximizeVertical : 0) | (horizontally ? MaximizeHorizontal : 0)));
     const MaximizeMode oldMode = requestedMaximizeMode();
     changeMaximize(
         oldMode & MaximizeHorizontal ? !horizontally : horizontally,
@@ -3654,18 +3657,21 @@ void Window::setMoveResizeGeometry(const QRectF &geo)
 void Window::move(const QPointF &point)
 {
     m_moveResizeGeometry.moveTopLeft(point);
+    Q_EMIT frameGeometryAboutToChange(this);
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::Move);
 }
 
 void Window::resize(const QSizeF &size)
 {
     m_moveResizeGeometry.setSize(size);
+    Q_EMIT frameGeometryAboutToChange(this);
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::Resize);
 }
 
 void Window::moveResize(const QRectF &rect)
 {
     m_moveResizeGeometry = rect;
+    Q_EMIT frameGeometryAboutToChange(this);
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::MoveResize);
 }
 
