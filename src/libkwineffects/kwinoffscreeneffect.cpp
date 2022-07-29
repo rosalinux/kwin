@@ -97,7 +97,7 @@ void OffscreenEffect::redirect(EffectWindow *window)
     }
 
     if (!d->live) {
-        qWarning() << "JKKfKK" << window->frameGeometry() << window->lastPaintedFrameGeometry();
+        qWarning() << "JKKfKK" << window->frameGeometry() << window->expandedGeometry();
         offscreenData->redirectedExpandedGeometry = window->expandedGeometry();
         offscreenData->redirectedFrameGeometry = window->frameGeometry();
         effects->makeOpenGLContextCurrent();
@@ -269,6 +269,9 @@ void OffscreenEffect::drawWindow(EffectWindow *window, int mask, const QRegion &
     } else {
         data.setYTranslation(data.yTranslation() / (data.yScale() / heightRatio));
     }
+
+    //     data.setYTranslation((-frameGeometry.y() + data.yTranslation()) / data.yScale() + frameGeometry.y()/data.yScale() );
+    //     data.setYTranslation((-frameGeometry.y() + offscreenData->redirectedFrameGeometry.y())/data.yScale());
 
     WindowQuad quad;
     quad[0] = WindowVertex(visibleRect.topLeft(), QPointF(0, 0));

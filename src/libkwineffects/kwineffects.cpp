@@ -764,8 +764,6 @@ public:
     Private(EffectWindow *q);
 
     EffectWindow *q;
-    QRectF lastPaintedFrameGeometry;
-    QRectF lastPaintedExpandedGeometry;
 };
 
 EffectWindow::Private::Private(EffectWindow *q)
@@ -781,26 +779,6 @@ EffectWindow::EffectWindow(QObject *parent)
 
 EffectWindow::~EffectWindow()
 {
-}
-
-void EffectWindow::setLastPaintedFrameGeometry(const QRectF &r)
-{
-    d->lastPaintedFrameGeometry = r;
-}
-
-QRectF EffectWindow::lastPaintedFrameGeometry() const
-{
-    return d->lastPaintedFrameGeometry;
-}
-
-void EffectWindow::setLastPaintedExpandedGeometry(const QRectF &r)
-{
-    d->lastPaintedExpandedGeometry = r;
-}
-
-QRectF EffectWindow::lastPaintedExpandedGeometry() const
-{
-    return d->lastPaintedExpandedGeometry;
 }
 
 bool EffectWindow::isOnActivity(const QString &activity) const
