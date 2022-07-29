@@ -257,17 +257,18 @@ void OffscreenEffect::drawWindow(EffectWindow *window, int mask, const QRegion &
     visibleRect = QRectF(QPointF(0, 0), frameGeometry.size()) - margins;
     // visibleRect = expandedGeometry;
     // visibleRect.moveTopLeft(expandedGeometry.topLeft() - frameGeometry.topLeft());
-    data.setYTranslation(data.yTranslation() / data.yScale() + (offscreenData->redirectedFrameGeometry.y() - frameGeometry.y()) * 4);
-    //     if (widthRatio < 1) {
-    //         data.setXTranslation(data.xTranslation() / data.xScale());
-    //     } else {
-    //         data.setXTranslation(data.xTranslation() / (data.xScale()/widthRatio));
-    //     }
-    //     if (heightRatio < 1) {
-    //         data.setYTranslation(data.yTranslation() / data.yScale());
-    //     } else {
-    //         data.setYTranslation(data.yTranslation() / (data.yScale()/heightRatio));
-    //     }
+    // data.setYTranslation(data.yTranslation() / data.yScale() + (offscreenData->redirectedFrameGeometry.y() - frameGeometry.y()) * 4);
+    // FIXME MART: not completely right and i don't understand it
+    if (widthRatio < 1) {
+        data.setXTranslation(data.xTranslation() / data.xScale());
+    } else {
+        data.setXTranslation(data.xTranslation() / (data.xScale() / widthRatio));
+    }
+    if (heightRatio < 1) {
+        data.setYTranslation(data.yTranslation() / data.yScale());
+    } else {
+        data.setYTranslation(data.yTranslation() / (data.yScale() / heightRatio));
+    }
 
     WindowQuad quad;
     quad[0] = WindowVertex(visibleRect.topLeft(), QPointF(0, 0));
