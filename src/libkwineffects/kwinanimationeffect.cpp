@@ -243,14 +243,6 @@ quint64 AnimationEffect::p_animate(EffectWindow *w, Attribute a, uint meta, int 
         AniMap::const_iterator entry = d->m_animations.constFind(w);
         setLive(false);
         OffscreenEffect::redirect(w);
-        /*if (entry != d->m_animations.constEnd()) {
-            for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
-                if (anim->attribute == Size) {
-                    OffscreenEffect::redirect(w);
-                    break;
-                }
-            }
-        }*/
     }
 
     it->first.append(AniData(
@@ -696,41 +688,6 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
         // effects->drawWindow(w, mask, finalRegion, data);
         data.setOpacity(1 - data.crossFadeProgress());
         data.setOpacity(0.8);
-        /* DeformOffscreenData *offscreenData = d->windows.value(w);
-         if (!offscreenData) {
-             effects->drawWindow(w, mask, finalRegion, data);
-             return;
-         }*/
-
-        const auto expandedGeometry = w->expandedGeometry();
-        const auto frameGeometry = w->frameGeometry();
-        const auto redirectedExpandedGeometry = OffscreenEffect::redirectedExpandedGeometry(w);
-        const auto redirectedFrameGeometry = OffscreenEffect::redirectedFrameGeometry(w);
-
-        //   qWarning() << "BBBB" << fromX << fromY << fromWidth << fromHeight;
-        //  qWarning() << "data" << data.xTranslation() << data.yTranslation();
-        /*   data.setXScale(1);
-           data.setYScale(1);
-           data.setXTranslation(data.xTranslation() + fromX);
-           data.setYTranslation(data.yTranslation() + fromY);
-           data.setXTranslation(0);
-           data.setYTranslation(0);*/
-        const QSizeF sizeRatio(redirectedFrameGeometry.width() / frameGeometry.width(),
-                               redirectedFrameGeometry.height() / frameGeometry.height());
-
-        /*
-        data.setXScale(data.xScale() * (expandedGeometry.width() / frameGeometry.width()));
-        data.setYScale(data.yScale() * (expandedGeometry.height() / frameGeometry.height()));
-
-        data.setXTranslation(data.xTranslation() +
-            (redirectedExpandedGeometry.x() - expandedGeometry.x()) * (1-translationProgess) - (frameGeometry.x() - expandedGeometry.x())*(frameGeometry.width()/redirectedFrameGeometry.width()));
-
-        data.setYTranslation(data.yTranslation() +
-            (redirectedExpandedGeometry.y() - expandedGeometry.y()) * (1-translationProgess) - (frameGeometry.y() - expandedGeometry.y())
-        );
-*/
-
-        //  qWarning()<<"CCCC"<<sizeRatio<<translationProgess<<((expandedGeometry.width() - frameGeometry.width()) * sizeRatio.width())<<expandedGeometry.width() / frameGeometry.width();
 
         OffscreenEffect::drawWindow(w, mask, finalRegion, data);
     } else {
