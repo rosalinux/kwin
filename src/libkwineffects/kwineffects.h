@@ -1598,7 +1598,24 @@ Q_SIGNALS:
      * @since 4.7
      */
     void windowMaximizedStateChanged(KWin::EffectWindow *w, bool horizontal, bool vertical);
+
+    /**
+     * Signal emitted when the maximized state of the window @p w is about to change,
+     * but before windowMaximizedStateChanged is emitted or any geometry change.
+     * Useful for OffscreenEffect to grab a window image before any actual change happens
+     *
+     * A window can be in one of four states:
+     * @li restored: both @p horizontal and @p vertical are @c false
+     * @li horizontally maximized: @p horizontal is @c true and @p vertical is @c false
+     * @li vertically maximized: @p horizontal is @c false and @p vertical is @c true
+     * @li completely maximized: both @p horizontal and @p vertical are @c true
+     * @param w The window whose maximized state changed
+     * @param horizontal If @c true maximized horizontally
+     * @param vertical If @c true maximized vertically
+     * @since 5.26
+     */
     void windowMaximizedStateAboutToChange(KWin::EffectWindow *w, bool horizontal, bool vertical);
+
     /**
      * Signal emitted when the geometry or shape of a window changed.
      * This is caused if the window changes geometry without user interaction.
@@ -1617,7 +1634,16 @@ Q_SIGNALS:
      * @since 5.19
      */
     void windowFrameGeometryChanged(KWin::EffectWindow *window, const QRectF &oldGeometry);
+
+    /**
+     * This signal is emitted when the frame geometry is about to change, the new one is not known yet.
+     * Useful for OffscreenEffect to grab a window image before any actual change happens.
+     *
+     * @param window The window whose geometry is about to change
+     * @since 5.26
+     */
     void windowFrameGeometryAboutToChange(KWin::EffectWindow *window);
+
     /**
      * Signal emitted when the windows opacity is changed.
      * @param w The window whose opacity level is changed.

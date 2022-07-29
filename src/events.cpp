@@ -1311,9 +1311,7 @@ void Unmanaged::configureNotifyEvent(xcb_configure_notify_event_t *e)
         static_cast<EffectsHandlerImpl *>(effects)->checkInputWindowStacking(); // keep them on top
     }
     QRectF newgeom(Xcb::fromXNative(e->x), Xcb::fromXNative(e->y), Xcb::fromXNative(e->width), Xcb::fromXNative(e->height));
-    qWarning() << "HHHH" << this << newgeom << m_frameGeometry;
     if (newgeom != m_frameGeometry) {
-        qWarning() << "JHJHJH";
         Q_EMIT frameGeometryAboutToChange(this);
 
         QRectF old = m_frameGeometry;

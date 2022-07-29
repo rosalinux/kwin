@@ -22,9 +22,9 @@ var morphingEffect = {
         }
         var couldRetarget = false;
         if (window.fadeAnimation) {
-          //  couldRetarget = retarget(window.fadeAnimation[0], 1.0, morphingEffect.duration);
+            couldRetarget = retarget(window.fadeAnimation[0], 1.0, morphingEffect.duration);
         }
-        print("AAAAAAAA doing morphing effect "+window.geometry)
+
         if (!couldRetarget) {
             window.fadeAnimation = animate({
                 window: window,
@@ -120,23 +120,6 @@ var morphingEffect = {
             });
 
         }
-
-//         couldRetarget = false;
-//         if (window.fadeAnimation) {
-//             couldRetarget = retarget(window.fadeAnimation[0], 1.0, morphingEffect.duration);
-//         }
-//         print("AAAAAAAA doing morphing effect "+window.geometry+" "+oldGeometry)
-//         if (!couldRetarget) {
-//             window.fadeAnimation = animate({
-//                 window: window,
-//                 duration: morphingEffect.duration,
-//                 animations: [{
-//                     type: Effect.CrossFadePrevious,
-//                     to: 1.0,
-//                     from: 0.0
-//                 }]
-//             });
-//         }
     },
 
     init: function () {

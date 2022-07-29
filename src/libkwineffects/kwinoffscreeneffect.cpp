@@ -13,10 +13,10 @@ namespace KWin
 
 struct OffscreenData
 {
-    QRectF redirectedFrameGeometry;
-    QRectF redirectedExpandedGeometry;
     QScopedPointer<GLTexture> texture;
     QScopedPointer<GLFramebuffer> fbo;
+    QRectF redirectedFrameGeometry;
+    QRectF redirectedExpandedGeometry;
     bool isDirty = true;
     GLShader *shader = nullptr;
 };
@@ -97,12 +97,10 @@ void OffscreenEffect::redirect(EffectWindow *window)
     }
 
     if (!d->live) {
-        qWarning() << "JKKfKK" << window->frameGeometry() << window->expandedGeometry();
         offscreenData->redirectedExpandedGeometry = window->expandedGeometry();
         offscreenData->redirectedFrameGeometry = window->frameGeometry();
         effects->makeOpenGLContextCurrent();
         d->maybeRender(window, offscreenData);
-        qWarning() << "texture" << offscreenData->texture->size();
     }
 }
 
@@ -124,18 +122,14 @@ void OffscreenEffect::apply(EffectWindow *window, int mask, WindowPaintData &dat
 
 GLTexture *OffscreenEffectPrivate::maybeRender(EffectWindow *window, OffscreenData *offscreenData)
 {
-    // QMArginsF oldMargins()
     const QRect geometry = window->expandedGeometry().toAlignedRect();
     QSize textureSize = geometry.size();
-    // const QRect geometry = offscreenData->redirectedExpandedGeometry.toAlignedRect();
-    // QSize textureSize = offscreenData->redirectedExpandedGeometry.size().toSize();
 
     if (const EffectScreen *screen = window->screen()) {
         textureSize *= screen->devicePixelRatio();
     }
 
-    // FIXME MART
-    if (!offscreenData->texture /*|| offscreenData->texture->size() != textureSize*/) {
+    if (!offscreenData->texture || (live && offscreenData->texture->size() != textureSize)) {
         offscreenData->texture.reset(new GLTexture(GL_RGBA8, textureSize));
         offscreenData->texture->setFilter(GL_LINEAR);
         offscreenData->texture->setWrapMode(GL_CLAMP_TO_EDGE);
@@ -149,11 +143,8 @@ GLTexture *OffscreenEffectPrivate::maybeRender(EffectWindow *window, OffscreenDa
         glClear(GL_COLOR_BUFFER_BIT);
 
         QMatrix4x4 projectionMatrix;
-        // projectionMatrix.ortho(QRect(0, 0, qMin(geometry.width(), qRound(offscreenData->redirectedExpandedGeometry.width())), qMin(geometry.height(), qRound(offscreenData->redirectedExpandedGeometry.height()))));
         projectionMatrix.ortho(QRect(0, 0, geometry.width(), geometry.height()));
-        // projectionMatrix.ortho(QRect(0, 0, offscreenData->redirectedExpandedGeometry.width(), offscreenData->redirectedExpandedGeometry.height()));
-        //  projectionMatrix.ortho(QRect(0, 0, window->expandedGeometry().width(), window->expandedGeometry().height()));
-        qWarning() << "maybeRender" << geometry;
+
         WindowPaintData data;
         data.setXTranslation(-geometry.x());
         data.setYTranslation(-geometry.y());
@@ -162,7 +153,6 @@ GLTexture *OffscreenEffectPrivate::maybeRender(EffectWindow *window, OffscreenDa
 
         const int mask = Effect::PAINT_WINDOW_TRANSFORMED | Effect::PAINT_WINDOW_TRANSLUCENT;
         effects->drawWindow(window, mask, infiniteRegion(), data);
-        // q->drawWindow(window, mask, infiniteRegion(), data);
 
         GLFramebuffer::popFramebuffer();
         offscreenData->isDirty = false;
@@ -198,7 +188,6 @@ void OffscreenEffectPrivate::paint(EffectWindow *window, GLTexture *texture, con
 
     const qreal rgb = data.brightness() * data.opacity();
     const qreal a = data.opacity();
-    qWarning() << "translation" << data.xTranslation() << data.yTranslation();
     QMatrix4x4 mvp = data.screenProjectionMatrix();
     mvp.translate(window->x(), window->y());
 
@@ -249,29 +238,12 @@ void OffscreenEffect::drawWindow(EffectWindow *window, int mask, const QRegion &
         (expandedGeometry.y() - frameGeometry.y()) / heightRatio,
         (frameGeometry.right() - expandedGeometry.right()) / widthRatio,
         (frameGeometry.bottom() - expandedGeometry.bottom()) / heightRatio);
-    qWarning() << margins << offscreenData->redirectedFrameGeometry << "XSCALE" << data.xScale() << "HR" << heightRatio << (data.xScale() / widthRatio) << (1 - (data.xScale() - widthRatio) / (1 - widthRatio)) << "transl" << data.xTranslation();
+
     QRectF visibleRect((expandedGeometry.x() - frameGeometry.x()) * (data.xScale() / widthRatio),
                        (expandedGeometry.y() - frameGeometry.y()) * (data.yScale() / heightRatio),
                        expandedGeometry.width(),
                        expandedGeometry.height());
     visibleRect = QRectF(QPointF(0, 0), frameGeometry.size()) - margins;
-    // visibleRect = expandedGeometry;
-    // visibleRect.moveTopLeft(expandedGeometry.topLeft() - frameGeometry.topLeft());
-    // data.setYTranslation(data.yTranslation() / data.yScale() + (offscreenData->redirectedFrameGeometry.y() - frameGeometry.y()) * 4);
-    // FIXME MART: not completely right and i don't understand it
-    if (widthRatio < 1) {
-        data.setXTranslation(data.xTranslation() / data.xScale());
-    } else {
-        data.setXTranslation(data.xTranslation() / (data.xScale() / widthRatio));
-    }
-    if (heightRatio < 1) {
-        data.setYTranslation(data.yTranslation() / data.yScale());
-    } else {
-        data.setYTranslation(data.yTranslation() / (data.yScale() / heightRatio));
-    }
-
-    //     data.setYTranslation((-frameGeometry.y() + data.yTranslation()) / data.yScale() + frameGeometry.y()/data.yScale() );
-    //     data.setYTranslation((-frameGeometry.y() + offscreenData->redirectedFrameGeometry.y())/data.yScale());
 
     WindowQuad quad;
     quad[0] = WindowVertex(visibleRect.topLeft(), QPointF(0, 0));
@@ -284,7 +256,6 @@ void OffscreenEffect::drawWindow(EffectWindow *window, int mask, const QRegion &
     apply(window, mask, data, quads);
 
     GLTexture *texture = d->maybeRender(window, offscreenData);
-    qWarning() << "PAINTING TEXTURE" << visibleRect << texture->size() << (offscreenData->redirectedFrameGeometry.y() - frameGeometry.y()) / heightRatio;
 
     d->paint(window, texture, region, data, quads, offscreenData->shader);
 }

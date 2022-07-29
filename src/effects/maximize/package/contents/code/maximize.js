@@ -27,35 +27,16 @@ class MaximizeEffect {
     }
 
     onWindowMaximizedStateAboutToChange(window) {
-       /* window.maximizeAnimation1 = animate({
-            window: window,
-            duration: this.duration,
-            animations: [{
-                type: Effect.Size,
-                to: {
-                    value1: window.geometry.width,
-                    value2: window.geometry.height
-                },
-                from: {
-                    value1: window.geometry.width,
-                    value2: window.geometry.height
-                },
-                curve: QEasingCurve.OutCubic
-            }, {
-                type: Effect.Translation,
-                to: {
-                    value1: 0,
-                    value2: 0
-                },
-                from: {
-                    value1: 0,
-                    value2: 0
-                },
-                curve: QEasingCurve.OutCubic
-            }]
-        });*/
-print("ABOUTTOCHANGE")
-        window.maximizeAnimation2 =animate({
+        if (window.maximizeAnimation1) {
+            cancel(window.maximizeAnimation1);
+            delete window.maximizeAnimation1;
+        }
+        let couldRetarget = false;
+        if (window.maximizeAnimation2) {
+            couldRetarget = retarget(window.maximizeAnimation2, 1.0, this.duration);
+        }
+        if (!couldRetarget) {
+            window.maximizeAnimation2 = animate({
                 window: window,
                 duration: this.duration,
                 animations: [{
@@ -65,6 +46,7 @@ print("ABOUTTOCHANGE")
                     curve: QEasingCurve.OutCubic
                 }]
             });
+        }
     }
 
     onWindowMaximizedStateChanged(window) {
@@ -105,20 +87,6 @@ print("ABOUTTOCHANGE")
                 curve: QEasingCurve.OutCubic
             }]
         });
-        //retarget(window.maximizeAnimation1[0], {value1: newGeometry.width,value2: newGeometry.height}, this.duration)
-      /*  if (!window.resize) {
-            window.maximizeAnimation2 =animate({
-                window: window,
-                duration: this.duration,
-                animations: [{
-                    type: Effect.CrossFadePrevious,
-                    to: 1.0,
-                    from: 0.0,
-                    curve: QEasingCurve.OutCubic
-                }]
-            });
-        }*/
-      retarget(window.maximizeAnimation2, 1.0, this.duration);
     }
 
     restoreForceBlurState(window) {
@@ -126,7 +94,7 @@ print("ABOUTTOCHANGE")
     }
 
     onWindowFrameGeometryChanged(window, oldGeometry) {
-        /*if (window.maximizeAnimation1) {
+        if (window.maximizeAnimation1) {
             if (window.geometry.width != window.oldGeometry.width ||
                 window.geometry.height != window.oldGeometry.height) {
                 cancel(window.maximizeAnimation1);
@@ -136,7 +104,7 @@ print("ABOUTTOCHANGE")
                     delete window.maximizeAnimation2;
                 }
             }
-        }*/
+        }
         window.oldGeometry = Object.assign({}, window.geometry);
         window.olderGeometry = Object.assign({}, oldGeometry);
     }

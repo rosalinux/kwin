@@ -1476,6 +1476,9 @@ Q_SIGNALS:
      */
     void clientGeometryChanged(KWin::Window *window, const QRectF &oldGeometry);
 
+    /**
+     * This signal is emitted when the frame geometry is about to change. the new geometry is not known yet
+     */
     void frameGeometryAboutToChange(KWin::Window *window);
 
     /**

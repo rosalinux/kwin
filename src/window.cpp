@@ -108,7 +108,6 @@ Window::Window()
 
     // replace on-screen-display on size changes
     connect(this, &Window::frameGeometryChanged, this, [this](Window *c, const QRectF &old) {
-        qWarning() << "AAAAAA" << sender();
         Q_UNUSED(c)
         if (isOnScreenDisplay() && !frameGeometry().isEmpty() && old.size() != frameGeometry().size() && isPlaceable()) {
             GeometryUpdatesBlocker blocker(this);

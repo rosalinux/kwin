@@ -238,9 +238,6 @@ quint64 AnimationEffect::p_animate(EffectWindow *w, Attribute a, uint meta, int 
 
     PreviousWindowPixmapLockPtr previousPixmap;
     if (a == CrossFadePrevious) {
-        //previousPixmap = PreviousWindowPixmapLockPtr::create(w);
-        qWarning() << "REDIRECTING" << w << w->frameGeometry() << w->bufferGeometry();
-        AniMap::const_iterator entry = d->m_animations.constFind(w);
         setLive(false);
         OffscreenEffect::redirect(w);
     }
@@ -314,6 +311,10 @@ bool AnimationEffect::retarget(quint64 animationId, FPx2 newTarget, int newRemai
                 anim->timeLine.setDuration(std::chrono::milliseconds(newRemainingTime));
                 anim->timeLine.reset();
 
+                if (anim->attribute == CrossFadePrevious) {
+                    setLive(false);
+                    OffscreenEffect::redirect(entry.key());
+                }
                 return true;
             }
         }
@@ -349,7 +350,6 @@ bool AnimationEffect::freezeInTime(quint64 animationId, qint64 frozenTime)
 bool AnimationEffect::redirect(quint64 animationId, Direction direction, TerminationFlags terminationFlags)
 {
     Q_D(AnimationEffect);
-    qWarning() << "CALLED REDIRECT";
     if (animationId == d->m_justEndedAnimation) {
         return false;
     }
@@ -384,7 +384,6 @@ bool AnimationEffect::redirect(quint64 animationId, Direction direction, Termina
 bool AnimationEffect::complete(quint64 animationId)
 {
     Q_D(AnimationEffect);
-    qWarning() << "completed" << animationId << d->m_justEndedAnimation;
     if (animationId == d->m_justEndedAnimation) {
         return false;
     }
@@ -399,7 +398,6 @@ bool AnimationEffect::complete(quint64 animationId)
         }
 
         animIt->timeLine.setElapsed(animIt->timeLine.duration());
-        qWarning() << "UNREDIRECTING" << entryIt.key();
         unredirect(entryIt.key());
 
         return true;
@@ -411,7 +409,6 @@ bool AnimationEffect::complete(quint64 animationId)
 bool AnimationEffect::cancel(quint64 animationId)
 {
     Q_D(AnimationEffect);
-    qWarning() << "canceled" << animationId;
     if (animationId == d->m_justEndedAnimation) {
         return true; // this is just ending, do not try to cancel it but fake success
     }
@@ -544,11 +541,6 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
     bool hasFade = false;
     AniMap::const_iterator entry = d->m_animations.constFind(w);
     auto finalRegion = region;
-    qreal fromWidth = -1;
-    qreal fromHeight = -1;
-    qreal fromX = -1;
-    qreal fromY = -1;
-    qreal translationProgess = 0.0;
 
     if (entry != d->m_animations.constEnd()) {
         for (QList<AniData>::const_iterator anim = entry->first.constBegin(); anim != entry->first.constEnd(); ++anim) {
@@ -592,13 +584,7 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
                 finalRegion = clipRect(w->expandedGeometry().toAlignedRect(), *anim);
                 break;
             case Translation:
-                translationProgess = progress(*anim);
-                qWarning() << "before" << data.xTranslation();
                 data += QPointF(interpolated(*anim, 0), interpolated(*anim, 1));
-                qWarning() << "after" << data.xTranslation();
-                qWarning() << "BEGIN TRANSLATION" << anim->from[0] << anim->from[1] << anim->to[0] << anim->to[1] << interpolated(*anim, 0);
-                fromX = w->frameGeometry().x() + anim->from[0];
-                fromY = w->frameGeometry().y() + anim->from[1];
                 break;
             case Size: {
                 FPx2 dest = anim->from + progress(*anim) * (anim->to - anim->from);
@@ -608,13 +594,11 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
                     f = dest[0] / sz.width();
                     data.translate(geometryCompensation(anim->meta & AnimationEffect::Horizontal, f) * sz.width());
                     data.setXScale(data.xScale() * f);
-                    fromWidth = anim->from[0];
                 }
                 if (anim->from[1] >= 0.0 && anim->to[1] >= 0.0) { // resize y
                     f = dest[1] / sz.height();
                     data.translate(0.0, geometryCompensation(anim->meta & AnimationEffect::Vertical, f) * sz.height());
                     data.setYScale(data.yScale() * f);
-                    fromHeight = anim->from[1];
                 }
                 break;
             }
@@ -626,14 +610,12 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
                     const qreal x[2] = {xCoord(geo, metaData(SourceAnchor, anim->meta)),
                                         xCoord(geo, metaData(TargetAnchor, anim->meta))};
                     data.translate(dest - (x[0] + prgrs * (x[1] - x[0])));
-                    fromX = anim->from[0];
                 }
                 if (anim->from[1] >= 0.0 && anim->to[1] >= 0.0) {
                     float dest = interpolated(*anim, 1);
                     const qreal y[2] = {yCoord(geo, metaData(SourceAnchor, anim->meta)),
                                         yCoord(geo, metaData(TargetAnchor, anim->meta))};
                     data.translate(0.0, dest - (y[0] + prgrs * (y[1] - y[0])));
-                    fromY = anim->from[1];
                 }
                 break;
             }
@@ -684,11 +666,10 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
     }
 
     if (hasFade) {
-        Effect::drawWindow(w, mask, finalRegion, data);
-        // effects->drawWindow(w, mask, finalRegion, data);
+        // The best visual effect is done by drawing the new frame at full opacity then fading out the old one on top (the inverse can cause glitches when the animation ends and the window is semi transparent)
+        data.setOpacity(1);
+        effects->drawWindow(w, mask, finalRegion, data);
         data.setOpacity(1 - data.crossFadeProgress());
-        data.setOpacity(0.8);
-
         OffscreenEffect::drawWindow(w, mask, finalRegion, data);
     } else {
         effects->drawWindow(w, mask, finalRegion, data);
@@ -713,7 +694,6 @@ void AnimationEffect::postPaintScreen()
             EffectWindow *window = entry.key();
             d->m_justEndedAnimation = anim->id;
             if (anim->shader && std::none_of(entry->first.begin(), entry->first.end(), [anim] (const auto &other) { return anim->id != other.id && other.shader; })) {
-                qWarning() << "UNREDIRECTING";
                 unredirect(window);
             }
             unredirect(window);
