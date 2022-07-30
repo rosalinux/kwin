@@ -272,23 +272,6 @@ void WaylandServer::registerXdgGenericWindow(Window *window)
     qCDebug(KWIN_CORE) << "Received invalid xdg shell window:" << window->surface();
 }
 
-void WaylandServer::initPlatform()
-{
-    connect(kwinApp()->platform(), &Platform::outputAdded, this, &WaylandServer::handleOutputAdded);
-    connect(kwinApp()->platform(), &Platform::outputRemoved, this, &WaylandServer::handleOutputRemoved);
-
-    connect(kwinApp()->platform(), &Platform::outputEnabled, this, &WaylandServer::handleOutputEnabled);
-    connect(kwinApp()->platform(), &Platform::outputDisabled, this, &WaylandServer::handleOutputDisabled);
-
-    const QVector<Output *> outputs = kwinApp()->platform()->outputs();
-    for (Output *output : outputs) {
-        handleOutputAdded(output);
-        if (output->isEnabled()) {
-            handleOutputEnabled(output);
-        }
-    }
-}
-
 void WaylandServer::handleOutputAdded(Output *output)
 {
     if (!output->isPlaceholder() && !output->isNonDesktop()) {
@@ -561,6 +544,20 @@ void WaylandServer::initWorkspace()
         const Output *primaryOutput = workspace()->primaryOutput();
         m_primary->setPrimaryOutput(primaryOutput ? primaryOutput->name() : QString());
     });
+
+    const auto availableOutputs = kwinApp()->platform()->outputs();
+    for (Output *output : availableOutputs) {
+        handleOutputAdded(output);
+    }
+    connect(kwinApp()->platform(), &Platform::outputAdded, this, &WaylandServer::handleOutputAdded);
+    connect(kwinApp()->platform(), &Platform::outputRemoved, this, &WaylandServer::handleOutputRemoved);
+
+    const auto outputs = workspace()->outputs();
+    for (Output *output : outputs) {
+        handleOutputEnabled(output);
+    }
+    connect(workspace(), &Workspace::outputAdded, this, &WaylandServer::handleOutputEnabled);
+    connect(workspace(), &Workspace::outputRemoved, this, &WaylandServer::handleOutputDisabled);
 
     if (hasScreenLockerIntegration()) {
         initScreenLocker();

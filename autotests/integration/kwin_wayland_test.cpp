@@ -134,7 +134,6 @@ void WaylandTestApplication::performStartup()
     if (!platform()->initialize()) {
         std::exit(1);
     }
-    waylandServer()->initPlatform();
 
     // try creating the Wayland Backend
     createInput();
