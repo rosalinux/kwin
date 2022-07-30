@@ -522,8 +522,8 @@ private Q_SLOTS:
     void slotCurrentDesktopChangingCancelled();
     void slotDesktopAdded(VirtualDesktop *desktop);
     void slotDesktopRemoved(VirtualDesktop *desktop);
-    void slotOutputEnabled(Output *output);
-    void slotOutputDisabled(Output *output);
+    void slotOutputAdded(Output *output);
+    void slotOutputRemoved(Output *output);
 
 Q_SIGNALS:
     /**
@@ -601,6 +601,9 @@ private:
     void setupWindowConnections(Window *window);
     Unmanaged *createUnmanaged(xcb_window_t windowId);
     void addUnmanaged(Unmanaged *c);
+
+    void addOutput(Output *output);
+    void removeOutput(Output *output);
 
     void addWaylandWindow(Window *window);
     void removeWaylandWindow(Window *window);

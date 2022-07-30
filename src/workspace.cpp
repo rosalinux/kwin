@@ -207,14 +207,12 @@ void Workspace::init()
     m_focusChain->setSeparateScreenFocus(options->isSeparateScreenFocus());
 
     Platform *platform = kwinApp()->platform();
-    connect(platform, &Platform::outputEnabled, this, &Workspace::slotOutputEnabled);
-    connect(platform, &Platform::outputDisabled, this, &Workspace::slotOutputDisabled);
+    connect(platform, &Platform::outputAdded, this, &Workspace::slotOutputAdded);
+    connect(platform, &Platform::outputRemoved, this, &Workspace::slotOutputRemoved);
 
     const QVector<Output *> outputs = platform->outputs();
     for (Output *output : outputs) {
-        if (output->isEnabled()) {
-            slotOutputEnabled(output);
-        }
+        slotOutputAdded(output);
     }
 
     Screens *screens = Screens::self();
@@ -1203,11 +1201,34 @@ Output *Workspace::outputAt(const QPointF &pos) const
     return bestOutput;
 }
 
-void Workspace::slotOutputEnabled(Output *output)
+void Workspace::slotOutputAdded(Output *output)
 {
     if (output->isNonDesktop()) {
         return;
     }
+
+    if (output->isEnabled()) {
+        addOutput(output);
+    }
+
+    connect(output, &Output::enabledChanged, this, [this, output]() {
+        if (output->isEnabled()) {
+            addOutput(output);
+        } else {
+            removeOutput(output);
+        }
+    });
+}
+
+void Workspace::slotOutputRemoved(Output *output)
+{
+    if (!output->isNonDesktop()) {
+        removeOutput(output);
+    }
+}
+
+void Workspace::addOutput(Output *output)
+{
     if (!m_activeOutput) {
         m_activeOutput = output;
     }
@@ -1228,13 +1249,11 @@ void Workspace::slotOutputEnabled(Output *output)
     Q_EMIT outputAdded(output);
 }
 
-void Workspace::slotOutputDisabled(Output *output)
+void Workspace::removeOutput(Output *output)
 {
-    if (output->isNonDesktop()) {
+    if (!m_outputs.removeOne(output)) {
         return;
     }
-
-    m_outputs.removeOne(output);
 
     if (m_activeOutput == output) {
         m_activeOutput = outputAt(output->geometry().center());
