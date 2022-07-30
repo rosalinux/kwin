@@ -280,13 +280,6 @@ void WaylandServer::initPlatform()
     connect(kwinApp()->platform(), &Platform::outputEnabled, this, &WaylandServer::handleOutputEnabled);
     connect(kwinApp()->platform(), &Platform::outputDisabled, this, &WaylandServer::handleOutputDisabled);
 
-    connect(kwinApp()->platform(), &Platform::primaryOutputChanged, this, [this](Output *primaryOutput) {
-        m_primary->setPrimaryOutput(primaryOutput ? primaryOutput->name() : QString());
-    });
-    if (auto primaryOutput = kwinApp()->platform()->primaryOutput()) {
-        m_primary->setPrimaryOutput(primaryOutput->name());
-    }
-
     const QVector<Output *> outputs = kwinApp()->platform()->outputs();
     for (Output *output : outputs) {
         handleOutputAdded(output);
@@ -560,6 +553,14 @@ void WaylandServer::initWorkspace()
             connect(workspace(), &Workspace::stackingOrderChanged, this, f);
         });
     }
+
+    if (auto primaryOutput = workspace()->primaryOutput()) {
+        m_primary->setPrimaryOutput(primaryOutput->name());
+    }
+    connect(workspace(), &Workspace::primaryOutputChanged, this, [this]() {
+        const Output *primaryOutput = workspace()->primaryOutput();
+        m_primary->setPrimaryOutput(primaryOutput ? primaryOutput->name() : QString());
+    });
 
     if (hasScreenLockerIntegration()) {
         initScreenLocker();

@@ -29,6 +29,7 @@
 #include "wayland/outputchangeset_v2.h"
 #include "wayland/outputconfiguration_v2_interface.h"
 #include "wayland_server.h"
+#include "workspace.h"
 
 #include <KCoreAddons>
 
@@ -47,24 +48,6 @@ Platform::Platform(QObject *parent)
     : QObject(parent)
     , m_eglDisplay(EGL_NO_DISPLAY)
 {
-    connect(this, &Platform::outputDisabled, this, [this](Output *output) {
-        if (m_primaryOutput == output) {
-            Output *primary = nullptr;
-            const auto candidates = outputs();
-            for (Output *output : candidates) {
-                if (output->isEnabled()) {
-                    primary = output;
-                    break;
-                }
-            }
-            setPrimaryOutput(primary);
-        }
-    });
-    connect(this, &Platform::outputEnabled, this, [this](Output *output) {
-        if (!m_primaryOutput) {
-            setPrimaryOutput(output);
-        }
-    });
 }
 
 Platform::~Platform()
@@ -173,21 +156,10 @@ void Platform::requestOutputsChange(KWaylandServer::OutputConfigurationV2Interfa
     }
 
     if (applyOutputChanges(cfg)) {
-        if (config->primaryChanged() || !primaryOutput()->isEnabled()) {
+        if (config->primaryChanged()) {
             auto requestedPrimaryOutput = findOutput(config->primary()->uuid());
             if (requestedPrimaryOutput && requestedPrimaryOutput->isEnabled()) {
-                setPrimaryOutput(requestedPrimaryOutput);
-            } else {
-                Output *defaultPrimaryOutput = nullptr;
-                const auto candidates = outputs();
-                for (Output *output : candidates) {
-                    if (output->isEnabled()) {
-                        defaultPrimaryOutput = output;
-                        break;
-                    }
-                }
-                qCWarning(KWIN_CORE) << "Requested invalid primary screen, using" << defaultPrimaryOutput;
-                setPrimaryOutput(defaultPrimaryOutput);
+                workspace()->setPrimaryOutput(requestedPrimaryOutput);
             }
         }
         Q_EMIT screens()->changed();
@@ -415,14 +387,4 @@ void Platform::setSceneEglGlobalShareContext(EGLContext context)
     m_globalShareContext = context;
 }
 
-void Platform::setPrimaryOutput(Output *primary)
-{
-    if (primary == m_primaryOutput) {
-        return;
-    }
-    Q_ASSERT(kwinApp()->isTerminating() || primary->isEnabled());
-    m_primaryOutput = primary;
-    Q_EMIT primaryOutputChanged(primary);
-}
-
-}
+} // namespace KWin

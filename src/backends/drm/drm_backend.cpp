@@ -472,7 +472,6 @@ bool DrmBackend::readOutputsConfiguration(const QVector<DrmAbstractOutput *> &ou
     Q_ASSERT(!outputs.isEmpty());
     const auto outputsInfo = KWinKScreenIntegration::outputsConfig(outputs);
 
-    Output *primaryOutput = outputs.constFirst();
     OutputConfiguration cfg;
     // default position goes from left to right
     QPoint pos(0, 0);
@@ -484,9 +483,6 @@ bool DrmBackend::readOutputsConfiguration(const QVector<DrmAbstractOutput *> &ou
         const QJsonObject outputInfo = outputsInfo[output];
         qCDebug(KWIN_DRM) << "Reading output configuration for " << output;
         if (!outputInfo.isEmpty()) {
-            if (outputInfo["primary"].toBool()) {
-                primaryOutput = output;
-            }
             props->enabled = outputInfo["enabled"].toBool(true);
             const QJsonObject pos = outputInfo["pos"].toObject();
             props->pos = QPoint(pos["x"].toInt(), pos["y"].toInt());
@@ -518,15 +514,10 @@ bool DrmBackend::readOutputsConfiguration(const QVector<DrmAbstractOutput *> &ou
         qCWarning(KWIN_DRM) << "KScreen config would disable all outputs!";
         return false;
     }
-    if (!cfg.changeSet(primaryOutput)->enabled) {
-        qCWarning(KWIN_DRM) << "KScreen config would disable the primary output!";
-        return false;
-    }
     if (!applyOutputChanges(cfg)) {
         qCWarning(KWIN_DRM) << "Applying KScreen config failed!";
         return false;
     }
-    setPrimaryOutput(primaryOutput);
     return true;
 }
 

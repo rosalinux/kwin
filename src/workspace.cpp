@@ -1211,6 +1211,9 @@ void Workspace::slotOutputEnabled(Output *output)
     if (!m_activeOutput) {
         m_activeOutput = output;
     }
+    if (!m_primaryOutput) {
+        setPrimaryOutput(output);
+    }
 
     m_outputs.append(output);
 
@@ -1235,6 +1238,9 @@ void Workspace::slotOutputDisabled(Output *output)
 
     if (m_activeOutput == output) {
         m_activeOutput = outputAt(output->geometry().center());
+    }
+    if (m_primaryOutput == output) {
+        setPrimaryOutput(m_outputs.constFirst());
     }
 
     disconnect(output, &Output::geometryChanged, this, &Workspace::desktopResized);
@@ -2359,6 +2365,19 @@ Output *Workspace::xineramaIndexToOutput(int index) const
     }
 
     return nullptr;
+}
+
+Output *Workspace::primaryOutput() const
+{
+    return m_primaryOutput;
+}
+
+void Workspace::setPrimaryOutput(Output *output)
+{
+    if (m_primaryOutput != output) {
+        m_primaryOutput = output;
+        Q_EMIT primaryOutputChanged();
+    }
 }
 
 Output *Workspace::activeOutput() const
