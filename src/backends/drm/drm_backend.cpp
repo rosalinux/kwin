@@ -528,7 +528,6 @@ void DrmBackend::enableOutput(DrmAbstractOutput *output, bool enable)
     }
     if (enable) {
         m_enabledOutputs << output;
-        Q_EMIT outputEnabled(output);
         checkOutputsAreOn();
         if (m_placeHolderOutput && !output->isNonDesktop()) {
             qCDebug(KWIN_DRM) << "removing placeholder output";
@@ -549,7 +548,6 @@ void DrmBackend::enableOutput(DrmAbstractOutput *output, bool enable)
             input()->prependInputEventFilter(m_placeholderFilter.get());
         }
         m_enabledOutputs.removeOne(output);
-        Q_EMIT outputDisabled(output);
     }
 }
 

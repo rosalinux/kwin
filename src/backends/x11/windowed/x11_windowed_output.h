@@ -67,7 +67,6 @@ public:
     QPointF mapFromGlobal(const QPointF &pos) const;
 
     bool usesSoftwareCursor() const override;
-    void updateEnablement(bool enabled) override;
 
 private:
     void initXInputForWindow();

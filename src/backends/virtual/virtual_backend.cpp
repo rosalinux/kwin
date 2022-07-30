@@ -131,11 +131,9 @@ void VirtualBackend::enableOutput(VirtualOutput *output, bool enable)
     if (enable) {
         Q_ASSERT(!m_outputsEnabled.contains(output));
         m_outputsEnabled << output;
-        Q_EMIT outputEnabled(output);
     } else {
         Q_ASSERT(m_outputsEnabled.contains(output));
         m_outputsEnabled.removeOne(output);
-        Q_EMIT outputDisabled(output);
     }
 }
 

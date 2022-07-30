@@ -75,15 +75,6 @@ void WaylandOutput::setGeometry(const QPoint &logicalPosition, const QSize &pixe
     Q_EMIT m_backend->screensQueried();
 }
 
-void WaylandOutput::updateEnablement(bool enable)
-{
-    if (enable) {
-        Q_EMIT m_backend->outputEnabled(this);
-    } else {
-        Q_EMIT m_backend->outputDisabled(this);
-    }
-}
-
 void WaylandOutput::setDpmsMode(DpmsMode mode)
 {
     if (mode == DpmsMode::Off) {
