@@ -85,7 +85,7 @@ QRectF TileData::relativeGeometry() const
 
 QRectF TileData::absoluteGeometry() const
 {
-    const QRect geom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
+    const auto geom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
     return QRectF(qRound(geom.x() + m_relativeGeometry.x() * geom.width() + m_leftPadding),
                   qRound(geom.y() + m_relativeGeometry.y() * geom.height() + m_topPadding),
                   qRound(m_relativeGeometry.width() * geom.width() - m_leftPadding - m_rightPadding),
@@ -146,7 +146,7 @@ void TileData::resizeInLayout(qreal delta)
         return;
     }
 
-    const QRect areaGeom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
+    const auto areaGeom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
 
     auto geom = m_relativeGeometry;
     auto otherGeom = m_parentItem->m_childItems[index - 1]->relativeGeometry();
@@ -334,7 +334,7 @@ Output *CustomTiling::output() const
     return m_output;
 }
 
-void CustomTiling::updateTileGeometry(const QRect &oldGeom, const QRect &newGeom)
+void CustomTiling::updateTileGeometry(const QRectF &oldGeom, const QRectF &newGeom)
 {
     TileData *tile = m_rootTile->descendantFromGeometry(oldGeom);
 

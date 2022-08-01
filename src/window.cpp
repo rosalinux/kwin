@@ -1804,7 +1804,7 @@ void Window::handleInteractiveMoveResize(const QPointF &local, const QPointF &gl
             if (r.isEmpty()) {
                 outline()->hide();
             } else {
-                outline()->show(r, moveResizeGeometry());
+                outline()->show(r.toRect(), moveResizeGeometry().toRect());
             }
         } else if (!m_electricMaximizing) {
             //FIXME
@@ -3757,10 +3757,10 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
         ret.setTop(ret.bottom() - (ret.height() - ret.height() / 2));
     } else if (mode & QuickTileFlag::CustomZone) {
         Output *o = output();
-        QList<QRect> zones = {
-            QRect(o->geometry().x(), o->geometry().y(), o->geometry().width() / 4, o->geometry().height()),
-            QRect(o->geometry().x() + o->geometry().width() / 4, o->geometry().y(), o->geometry().width() / 4 * 2, o->geometry().height()),
-            QRect(o->geometry().x() + o->geometry().width() / 4 * 3, o->geometry().y(), o->geometry().width() / 4, o->geometry().height())};
+        QList<QRectF> zones = {
+            QRectF(o->geometry().x(), o->geometry().y(), o->geometry().width() / 4, o->geometry().height()),
+            QRectF(o->geometry().x() + o->geometry().width() / 4, o->geometry().y(), o->geometry().width() / 4 * 2, o->geometry().height()),
+            QRectF(o->geometry().x() + o->geometry().width() / 4 * 3, o->geometry().y(), o->geometry().width() / 4, o->geometry().height())};
         for (const auto &r : zones) {
             if (r.contains(pos)) {
                 return r;

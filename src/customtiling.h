@@ -122,7 +122,7 @@ public:
 
     Output *output() const;
 
-    void updateTileGeometry(const QRect &oldGeom, const QRect &newGeom);
+    void updateTileGeometry(const QRectF &oldGeom, const QRectF &newGeom);
 
     QList<QRectF> tileGeometries() const;
     TileData *rootTile() const;
