@@ -230,20 +230,23 @@ void OffscreenEffect::drawWindow(EffectWindow *window, int mask, const QRegion &
     const QRectF expandedGeometry = window->expandedGeometry();
     const QRectF frameGeometry = window->frameGeometry();
 
+    // This is for the case of *non* live effect, when the window buffer we saved has a different size
+    // compared to the size the window has now. The "old" window will be rendered scaled to the current
+    // window geometry, but everything will be scaled, also the shadow if there is any, making the window
+    // frame not line up anymore with window->frameGeometry()
+    // to fix that, we consider how much the shadow will have scaled, and use that as margins to the
+    // current frame geometry. this causes the scaled window to visually line up perfectly with frameGeometry,
+    // having the scaled shadow all outside of it.
     const qreal widthRatio = offscreenData->redirectedFrameGeometry.width() / frameGeometry.width();
     const qreal heightRatio = offscreenData->redirectedFrameGeometry.height() / frameGeometry.height();
 
-    QMarginsF margins(
+    const QMarginsF margins(
         (expandedGeometry.x() - frameGeometry.x()) / widthRatio,
         (expandedGeometry.y() - frameGeometry.y()) / heightRatio,
         (frameGeometry.right() - expandedGeometry.right()) / widthRatio,
         (frameGeometry.bottom() - expandedGeometry.bottom()) / heightRatio);
 
-    QRectF visibleRect((expandedGeometry.x() - frameGeometry.x()) * (data.xScale() / widthRatio),
-                       (expandedGeometry.y() - frameGeometry.y()) * (data.yScale() / heightRatio),
-                       expandedGeometry.width(),
-                       expandedGeometry.height());
-    visibleRect = QRectF(QPointF(0, 0), frameGeometry.size()) - margins;
+    const QRectF visibleRect = QRectF(QPointF(0, 0), frameGeometry.size()) - margins;
 
     WindowQuad quad;
     quad[0] = WindowVertex(visibleRect.topLeft(), QPointF(0, 0));
