@@ -15,9 +15,11 @@ import org.kde.plasma.core 2.0 as PlasmaCore
 Item {
     id: thumb
 
+    /** @type: KWin::Window */
     required property QtObject client
     required property int index
-    required property Item windowHeap
+    /** @type: WindowHeap */ // cannot name the type directly due to "Cyclic dependency" error.
+    required property QtObject windowHeap
 
     readonly property bool selected: windowHeap.selectedIndex === index
     //TODO: move?

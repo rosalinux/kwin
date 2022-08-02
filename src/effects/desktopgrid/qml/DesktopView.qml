@@ -8,14 +8,16 @@
 import QtQuick 2.15
 import org.kde.kwin 3.0 as KWinComponents
 import org.kde.kwin.private.effects 1.0
+import org.kde.kwin.private.desktopgrid 1.0
 import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.components 3.0 as PC3
-import org.kde.kwin.private.desktopgrid 1.0
 
 FocusScope {
     id: desktopView
 
+    /** @type: model<KWinComponents.ClientModel> */
     required property QtObject clientModel
+    /** @type: VirtualDesktop */
     required property QtObject desktop
     readonly property bool dragActive: heap.dragActive || dragHandler.active || xAnim.running || yAnim.running
     property real panelOpacity: 1

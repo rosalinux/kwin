@@ -27,7 +27,7 @@ WindowViewEffect::WindowViewEffect()
     , m_exposeAllAction(new QAction(this))
     , m_exposeClassAction(new QAction(this))
 {
-    qmlRegisterUncreatableType<WindowViewEffect>("org.kde.KWin.Effect.WindowView", 1, 0, "WindowView", QStringLiteral("WindowView cannot be created in QML"));
+    qmlRegisterUncreatableType<WindowViewEffect>("org.kde.kwin.private.windowview", 1, 0, "WindowView", QStringLiteral("WindowView cannot be created in QML"));
     initConfig<WindowViewConfig>();
     new WindowView1Adaptor(this);
 

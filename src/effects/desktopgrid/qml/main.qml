@@ -11,13 +11,15 @@ import QtQuick.Window 2.15
 import QtGraphicalEffects 1.15
 import org.kde.kwin 3.0 as KWinComponents
 import org.kde.kwin.private.effects 1.0
+import org.kde.kwin.private.desktopgrid 1.0
 import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.components 3.0 as PC3
 
 Rectangle {
     id: container
 
-    required property QtObject effect
+    required property DesktopGridEffect effect
+    /** @type: EffectScreen */
     required property QtObject targetScreen
 
     property bool animationEnabled: false

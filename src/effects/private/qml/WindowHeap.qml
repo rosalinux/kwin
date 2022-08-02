@@ -22,7 +22,9 @@ FocusScope {
         Down
     }
 
+    /** @type: model<KWinComponents.ClientModel> */
     property alias model: windowsRepeater.model
+    /** @type: WindowHeapDelegate */
     property alias delegate: windowsRepeater.delegate
     readonly property alias count: windowsRepeater.count
 
@@ -32,7 +34,9 @@ FocusScope {
     property bool animationEnabled: false
     property bool absolutePositioning: true
     property real padding: 0
-    // Either a string "activeClass" or a list internalIds of clients
+    /** Either a string "activeClass" or a list of internalIds of clients.
+     * @type: string | [QUuid]
+     */
     property var showOnly: []
     property string activeClass
 

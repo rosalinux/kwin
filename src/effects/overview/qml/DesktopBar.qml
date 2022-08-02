@@ -20,8 +20,11 @@ Item {
     readonly property real desktopWidth: desktopHeight * targetScreen.geometry.width / targetScreen.geometry.height
     readonly property real columnHeight: desktopHeight + PlasmaCore.Units.gridUnit
 
+    /** @type: model<KWinComponents.ClientModel> */
     property QtObject clientModel
+    /** @type: model<KWinComponents.VirtualDesktopModel> */
     property alias desktopModel: desktopRepeater.model
+    /** @type: VirtualDesktop */
     property QtObject selectedDesktop: null
 
     implicitHeight: columnHeight + 2 * PlasmaCore.Units.smallSpacing
@@ -49,6 +52,7 @@ Item {
                     height: bar.columnHeight
                     spacing: PlasmaCore.Units.smallSpacing
 
+                    /** @type: VirtualDesktop */
                     required property QtObject desktop
                     required property int index
 

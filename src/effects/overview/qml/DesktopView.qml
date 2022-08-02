@@ -10,7 +10,9 @@ import org.kde.kwin 3.0 as KWinComponents
 Item {
     id: desktopView
 
+    /** @type: model<KWinComponents.ClientModel> */
     required property QtObject clientModel
+    /** @type: VirtualDesktop */
     required property QtObject desktop
 
     Repeater {

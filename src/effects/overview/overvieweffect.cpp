@@ -21,6 +21,8 @@ namespace KWin
 OverviewEffect::OverviewEffect()
     : m_shutdownTimer(new QTimer(this))
 {
+    qmlRegisterUncreatableType<OverviewEffect>("org.kde.kwin.private.overview", 1, 0, "OverviewEffect", QStringLiteral("Cannot create elements of type OverviewEffect"));
+
     m_shutdownTimer->setSingleShot(true);
     connect(m_shutdownTimer, &QTimer::timeout, this, &OverviewEffect::realDeactivate);
 

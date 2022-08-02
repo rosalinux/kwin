@@ -9,6 +9,7 @@ import QtGraphicalEffects 1.15
 import org.kde.kirigami 2.20 as Kirigami
 import org.kde.kwin 3.0 as KWinComponents
 import org.kde.kwin.private.effects 1.0
+import org.kde.kwin.private.overview 1.0
 import org.kde.milou 0.3 as Milou
 import org.kde.plasma.components 3.0 as PC3
 import org.kde.plasma.core 2.0 as PlasmaCore
@@ -18,7 +19,8 @@ FocusScope {
     id: container
     focus: true
 
-    required property QtObject effect
+    required property OverviewEffect effect
+    /** @type: EffectScreen */
     required property QtObject targetScreen
 
     readonly property bool lightBackground: Math.max(PlasmaCore.ColorScope.backgroundColor.r,
