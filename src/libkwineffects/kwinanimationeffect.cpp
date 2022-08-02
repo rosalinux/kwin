@@ -513,8 +513,7 @@ void AnimationEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, 
                 continue;
             }
 
-            //FIXME MART
-            if (anim->attribute == Opacity /*|| anim->attribute == CrossFadePrevious*/) {
+            if (anim->attribute == Opacity || anim->attribute == CrossFadePrevious) {
                 data.setTranslucent();
             } else if (!(anim->attribute == Brightness || anim->attribute == Saturation)) {
                 data.setTransformed();
