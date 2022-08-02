@@ -53,6 +53,8 @@ AnimationEffect::AnimationEffect()
     if (!s_clock.isValid()) {
         s_clock.start();
     }
+    // Animation effect only uses redirect for crossfade and for closed windows. this means it can always be non-live
+    setLive(false);
     /* this is the same as the QTimer::singleShot(0, SLOT(init())) kludge
      * defering the init and esp. the connection to the windowClosed slot */
     QMetaObject::invokeMethod(this, &AnimationEffect::init, Qt::QueuedConnection);
@@ -238,7 +240,6 @@ quint64 AnimationEffect::p_animate(EffectWindow *w, Attribute a, uint meta, int 
 
     PreviousWindowPixmapLockPtr previousPixmap;
     if (a == CrossFadePrevious) {
-        setLive(false);
         OffscreenEffect::redirect(w);
     }
 
