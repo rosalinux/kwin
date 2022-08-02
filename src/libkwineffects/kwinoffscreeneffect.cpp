@@ -152,7 +152,7 @@ GLTexture *OffscreenEffectPrivate::maybeRender(EffectWindow *window, OffscreenDa
         data.setProjectionMatrix(projectionMatrix);
 
         const int mask = Effect::PAINT_WINDOW_TRANSFORMED | Effect::PAINT_WINDOW_TRANSLUCENT;
-        effects->drawWindow(window, mask, infiniteRegion(), data);
+        effects->finalDrawWindow(window, mask, infiniteRegion(), data);
 
         GLFramebuffer::popFramebuffer();
         offscreenData->isDirty = false;

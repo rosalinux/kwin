@@ -459,6 +459,11 @@ void EffectsHandlerImpl::drawWindow(EffectWindow *w, int mask, const QRegion &re
     }
 }
 
+void EffectsHandlerImpl::finalDrawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data)
+{
+    m_scene->finalDrawWindow(static_cast<EffectWindowImpl *>(w), mask, region, data);
+}
+
 bool EffectsHandlerImpl::hasDecorationShadows() const
 {
     return false;
