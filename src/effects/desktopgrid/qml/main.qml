@@ -5,10 +5,10 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Layouts 1.12
-import QtGraphicalEffects 1.12
+import QtQuick 2.15
+import QtQuick.Layouts 1.15
+import QtQuick.Window 2.15
+import QtGraphicalEffects 1.15
 import org.kde.kwin 3.0 as KWinComponents
 import org.kde.kwin.private.effects 1.0
 import org.kde.plasma.core 2.0 as PlasmaCore
