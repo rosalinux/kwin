@@ -313,7 +313,6 @@ bool AnimationEffect::retarget(quint64 animationId, FPx2 newTarget, int newRemai
                 anim->timeLine.reset();
 
                 if (anim->attribute == CrossFadePrevious) {
-                    setLive(false);
                     OffscreenEffect::redirect(entry.key());
                 }
                 return true;
