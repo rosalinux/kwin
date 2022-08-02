@@ -1557,7 +1557,6 @@ void Window::blockGeometryUpdates(bool block)
     } else {
         if (--m_blockGeometryUpdates == 0) {
             if (m_pendingMoveResizeMode != MoveResizeMode::None) {
-                Q_EMIT frameGeometryAboutToChange(this);
                 moveResizeInternal(moveResizeGeometry(), m_pendingMoveResizeMode);
                 m_pendingMoveResizeMode = MoveResizeMode::None;
             }
@@ -3656,21 +3655,18 @@ void Window::setMoveResizeGeometry(const QRectF &geo)
 void Window::move(const QPointF &point)
 {
     m_moveResizeGeometry.moveTopLeft(point);
-    Q_EMIT frameGeometryAboutToChange(this);
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::Move);
 }
 
 void Window::resize(const QSizeF &size)
 {
     m_moveResizeGeometry.setSize(size);
-    Q_EMIT frameGeometryAboutToChange(this);
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::Resize);
 }
 
 void Window::moveResize(const QRectF &rect)
 {
     m_moveResizeGeometry = rect;
-    Q_EMIT frameGeometryAboutToChange(this);
     moveResizeInternal(m_moveResizeGeometry, MoveResizeMode::MoveResize);
 }
 
