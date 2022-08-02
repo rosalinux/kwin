@@ -1902,6 +1902,8 @@ private:
 
 private:
     void handlePaletteChange();
+    void setTile(TileData *tile);
+
     QSharedPointer<TabBox::TabBoxClientImpl> m_tabBoxClient;
     bool m_firstInTabBox = false;
     bool m_skipTaskbar = false;

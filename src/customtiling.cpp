@@ -111,7 +111,7 @@ TileData::LayoutDirection TileData::layoutDirection() const
 bool TileData::isLayout() const
 {
     // Items with a single child are not allowed, unless the root or its two children which are *always* layouts
-    return m_childItems.count() > 1 || !m_parentItem || !m_parentItem->parentItem();
+    return m_childItems.count() > 0 || !m_parentItem || !m_parentItem->parentItem();
 }
 
 bool TileData::canBeRemoved() const
@@ -149,6 +149,10 @@ void TileData::resizeInLayout(qreal delta)
     int index = row();
 
     if (index < 1) {
+        // TODO: use resizeGravity instead?
+        if (index == 0 && m_parentItem->m_childItems.count() > 1) {
+            m_parentItem->m_childItems[index + 1]->resizeInLayout(-delta);
+        }
         return;
     }
 
@@ -286,7 +290,6 @@ TileData *TileData::descendantFromGeometry(const QRectF &geometry)
         return this;
     }
 
-    TileData *tile = nullptr;
     for (auto *tile : m_childItems) {
         if (auto *matchingTile = tile->descendantFromGeometry(geometry)) {
             return matchingTile;
