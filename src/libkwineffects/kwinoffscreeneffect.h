@@ -81,7 +81,6 @@ private:
     void destroyConnections();
 
     QScopedPointer<OffscreenEffectPrivate> d;
-    friend OffscreenEffectPrivate;
 };
 
 } // namespace KWin

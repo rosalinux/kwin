@@ -833,7 +833,7 @@ public:
     virtual void paintWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) = 0;
     virtual void postPaintWindow(EffectWindow *w) = 0;
     virtual void drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) = 0;
-    virtual void finalDrawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) = 0;
+    virtual void renderWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) = 0;
     virtual QVariant kwinOption(KWinOption kwopt) = 0;
     /**
      * Sets the cursor while the mouse is intercepted.
