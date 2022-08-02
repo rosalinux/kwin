@@ -665,8 +665,7 @@ void AnimationEffect::drawWindow(EffectWindow *w, int mask, const QRegion &regio
     }
 
     if (hasFade) {
-        // The best visual effect is done by drawing the new frame at full opacity then fading out the old one on top (the inverse can cause glitches when the animation ends and the window is semi transparent)
-        data.setOpacity(1);
+        // The best visual effect is done by drawing the new frame as it should be then fading out the old one on top (the inverse can cause glitches when the animation ends and the window is semi transparent)
         effects->drawWindow(w, mask, finalRegion, data);
         data.setOpacity(1 - data.crossFadeProgress());
         OffscreenEffect::drawWindow(w, mask, finalRegion, data);
