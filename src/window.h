@@ -50,6 +50,7 @@ class Output;
 class ClientMachine;
 class Deleted;
 class EffectWindowImpl;
+class TileData;
 class Shadow;
 class SurfaceItem;
 class VirtualDesktop;
@@ -1936,6 +1937,7 @@ private:
     QList<Window *> m_transients;
     bool m_modal = false;
     Layer m_layer = UnknownLayer;
+    TileData *m_tile = nullptr;
 
     // electric border/quick tiling
     QuickTileMode m_electricMode = QuickTileFlag::None;

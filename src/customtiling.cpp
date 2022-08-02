@@ -85,11 +85,17 @@ QRectF TileData::relativeGeometry() const
 
 QRectF TileData::absoluteGeometry() const
 {
-    const auto geom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
+    const auto geom = m_tiling->output()->geometry(); // workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
     return QRectF(qRound(geom.x() + m_relativeGeometry.x() * geom.width() + m_leftPadding),
                   qRound(geom.y() + m_relativeGeometry.y() * geom.height() + m_topPadding),
                   qRound(m_relativeGeometry.width() * geom.width() - m_leftPadding - m_rightPadding),
                   qRound(m_relativeGeometry.height() * geom.height() - m_topPadding - m_bottomPadding));
+}
+
+QRectF TileData::workspaceGeometry() const
+{
+    const auto geom = absoluteGeometry();
+    return geom.intersected(workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop()));
 }
 
 void TileData::setlayoutDirection(TileData::LayoutDirection dir)
@@ -393,6 +399,26 @@ QHash<int, QByteArray> CustomTiling::roleNames() const
 {
     return {
         {TileDataRole, QByteArrayLiteral("tileData")}};
+}
+
+TileData *CustomTiling::bestTileForPosition(const QPointF &pos)
+{
+    const auto tiles = m_rootTile->descendants();
+    qreal minimumDistance = std::numeric_limits<qreal>::max();
+    TileData *ret = nullptr;
+
+    for (auto *t : tiles) {
+        if (!t->isLayout()) {
+            const auto r = t->absoluteGeometry();
+            // It's possible for tiles to overlap, so take the one which center is nearer to mouse pos
+            const qreal distance = (r.center() - pos).manhattanLength();
+            if (r.contains(pos) && distance < minimumDistance) {
+                minimumDistance = distance;
+                ret = t;
+            }
+        }
+    }
+    return ret;
 }
 
 QList<QRectF> CustomTiling::tileGeometries() const

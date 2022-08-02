@@ -3730,18 +3730,12 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
     }
 
     if (mode & QuickTileFlag::CustomZone) {
-        const auto &zones = output()->customTiling()->tileGeometries();
-        QRectF ret;
-        qreal minimumDistance = std::numeric_limits<qreal>::max();
-        for (const auto &r : zones) {
-            // It's possible for tiles to overlap, so take the one which center is nearer to mouse pos
-            const qreal distance = (r.center() - pos).manhattanLength();
-            if (r.contains(pos) && distance < minimumDistance) {
-                minimumDistance = distance;
-                ret = r;
-            }
+        TileData *tile = output()->customTiling()->bestTileForPosition(pos);
+        if (tile) {
+            return tile->workspaceGeometry();
+        } else {
+            return QRectF();
         }
-        return ret.toRect();
     }
 
     QRectF ret = workspace()->clientArea(MaximizeArea, this, pos);
@@ -3755,17 +3749,6 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
         ret.setBottom(ret.top() + ret.height() / 2);
     } else if (mode & QuickTileFlag::Bottom) {
         ret.setTop(ret.bottom() - (ret.height() - ret.height() / 2));
-    } else if (mode & QuickTileFlag::CustomZone) {
-        Output *o = output();
-        QList<QRectF> zones = {
-            QRectF(o->geometry().x(), o->geometry().y(), o->geometry().width() / 4, o->geometry().height()),
-            QRectF(o->geometry().x() + o->geometry().width() / 4, o->geometry().y(), o->geometry().width() / 4 * 2, o->geometry().height()),
-            QRectF(o->geometry().x() + o->geometry().width() / 4 * 3, o->geometry().y(), o->geometry().width() / 4, o->geometry().height())};
-        for (const auto &r : zones) {
-            if (r.contains(pos)) {
-                return r;
-            }
-        }
     }
 
     return ret;
@@ -3814,6 +3797,10 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
 
     GeometryUpdatesBlocker blocker(this);
 
+    if (m_tile) {
+        disconnect(m_tile, nullptr, this, nullptr);
+    }
+
     if (mode == QuickTileMode(QuickTileFlag::Maximize)) {
         if (requestedMaximizeMode() == MaximizeFull) {
             m_quickTileMode = int(QuickTileFlag::None);
@@ -3824,7 +3811,6 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
             setMaximize(true, true);
             setGeometryRestore(effectiveGeometryRestore);
         }
-        disconnect(output()->customTiling(), nullptr, this, nullptr);
         doSetQuickTileMode();
         Q_EMIT quickTileModeChanged();
         return;
@@ -3854,7 +3840,6 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
             setMaximize(false, false);
         }
 
-        disconnect(output()->customTiling(), nullptr, this, nullptr);
         doSetQuickTileMode();
         Q_EMIT quickTileModeChanged();
 
@@ -3934,11 +3919,17 @@ void Window::setQuickTileMode(QuickTileMode mode, bool keyboard)
     }
 
     if (mode == QuickTileMode(QuickTileFlag::CustomZone)) {
-        connect(output()->customTiling(), &CustomTiling::tileGeometriesChanged, this, [this] {
-            moveResize(quickTileGeometry(QuickTileFlag::CustomZone, pos() + rect().center()));
-        });
-    } else {
-        disconnect(output()->customTiling(), nullptr, this, nullptr);
+        TileData *tile = output()->customTiling()->bestTileForPosition(keyboard ? moveResizeGeometry().center() : Cursors::self()->mouse()->pos());
+        if (tile) {
+            m_tile = tile;
+            moveResize(tile->workspaceGeometry());
+            connect(tile, &TileData::absoluteGeometryChanged, this, [this]() {
+                moveResize(m_tile->workspaceGeometry());
+            });
+            connect(tile, &TileData::destroyed, this, [this]() {
+                m_tile = nullptr;
+            });
+        }
     }
 
     doSetQuickTileMode();

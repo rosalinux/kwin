@@ -51,6 +51,7 @@ public:
     void setRelativeGeometry(const QRectF &geom);
     QRectF relativeGeometry() const;
     QRectF absoluteGeometry() const;
+    QRectF workspaceGeometry() const;
 
     void setlayoutDirection(TileData::LayoutDirection dir);
     // Own direction
@@ -124,6 +125,7 @@ public:
 
     void updateTileGeometry(const QRectF &oldGeom, const QRectF &newGeom);
 
+    TileData *bestTileForPosition(const QPointF &pos);
     QList<QRectF> tileGeometries() const;
     TileData *rootTile() const;
 
