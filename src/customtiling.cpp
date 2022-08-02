@@ -343,61 +343,6 @@ Output *CustomTiling::output() const
     return m_output;
 }
 
-void CustomTiling::updateTileGeometry(const QRectF &oldGeom, const QRectF &newGeom)
-{
-    TileData *tile = m_rootTile->descendantFromGeometry(oldGeom);
-
-    if (!tile) {
-        return;
-    }
-
-    if (tile->layoutDirection() == TileData::LayoutDirection::Floating) {
-        const QRectF wg = workspace()->clientArea(MaximizeArea, m_output, VirtualDesktopManager::self()->currentDesktop());
-        //TODO: consider padding
-        tile->setRelativeGeometry(QRectF((newGeom.x() - tile->leftPadding()) / wg.width(),
-                                         (newGeom.y() - tile->topPadding()) / wg.height(),
-                                         (newGeom.width() + tile->leftPadding() + tile->rightPadding()) / wg.width(),
-                                         (newGeom.height() + tile->topPadding() + tile->bottomPadding()) / wg.height()));
-        return;
-    }
-
-    if (oldGeom.x() != newGeom.x()) {
-        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Horizontal);
-        if (tile) {
-            tile->resizeInLayout(newGeom.x() - oldGeom.x());
-        }
-    }
-    if (oldGeom.y() != newGeom.y()) {
-        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Vertical);
-        if (tile) {
-            tile->resizeInLayout(newGeom.y() - oldGeom.y());
-        }
-    }
-
-    if (oldGeom.width() != newGeom.width()) {
-        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Horizontal);
-        if (tile) {
-            auto *parentTile = tile->parentItem();
-            if (parentTile) {
-                if (parentTile->childCount() > tile->row() + 1) {
-                    parentTile->child(tile->row() + 1)->resizeInLayout(newGeom.width() - oldGeom.width());
-                }
-            }
-        }
-    }
-    if (oldGeom.height() != newGeom.height()) {
-        tile = tile->ancestorWithDirection(TileData::LayoutDirection::Vertical);
-        if (tile) {
-            auto *parentTile = tile->parentItem();
-            if (parentTile) {
-                if (parentTile->childCount() > tile->row() + 1) {
-                    parentTile->child(tile->row() + 1)->resizeInLayout(newGeom.height() - oldGeom.height());
-                }
-            }
-        }
-    }
-}
-
 QHash<int, QByteArray> CustomTiling::roleNames() const
 {
     return {

@@ -123,8 +123,6 @@ public:
 
     Output *output() const;
 
-    void updateTileGeometry(const QRectF &oldGeom, const QRectF &newGeom);
-
     TileData *bestTileForPosition(const QPointF &pos);
     QList<QRectF> tileGeometries() const;
     TileData *rootTile() const;

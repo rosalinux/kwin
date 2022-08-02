@@ -2041,7 +2041,12 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
         if (moveResizeGeometry().size() != previousMoveResizeGeom.size()) {
             update = true;
             if (m_tile) {
-                m_tile->resizeInLayout(previousMoveResizeGeom.width() - moveResizeGeometry().width());
+                // TODO: need tile->setAbsoluteGeometry
+                if (m_tile->layoutDirection() == TileData::LayoutDirection::Horizontal) {
+                    m_tile->resizeInLayout(previousMoveResizeGeom.width() - moveResizeGeometry().width());
+                } else if (m_tile->layoutDirection() == TileData::LayoutDirection::Vertical) {
+                    m_tile->resizeInLayout(previousMoveResizeGeom.height() - moveResizeGeometry().height());
+                }
             }
         }
     } else if (isInteractiveMove()) {
