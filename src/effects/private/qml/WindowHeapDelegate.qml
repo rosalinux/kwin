@@ -325,8 +325,11 @@ Item {
                 thumb.activeDragHandler = this;
             } else {
                 thumbSource.Drag.drop();
-                var globalPos = targetScreen.mapToGlobal(centroid.scenePosition);
-                effect.checkItemDroppedOutOfScreen(globalPos, thumbSource);
+                // this whole component might have been destroyed by now due to drop onto another virtual desktop (not another screen)
+                if (typeof targetScreen !== "undefined") {
+                    var globalPos = targetScreen.mapToGlobal(centroid.scenePosition);
+                    effect.checkItemDroppedOutOfScreen(globalPos, thumbSource);
+                }
             }
         }
     }
