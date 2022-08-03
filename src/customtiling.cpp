@@ -56,13 +56,80 @@ void TileData::print()
     level--;
 }
 
+void TileData::setGeometryFromWindow(const QRectF &geom)
+{
+    setGeometryFromAbsolute(geom + QMarginsF(m_leftPadding, m_topPadding, m_rightPadding, m_bottomPadding));
+}
+
+void TileData::setGeometryFromAbsolute(const QRectF &geom)
+{
+    const auto outGeom = m_tiling->output()->geometry();
+    const QRectF relGeom((geom.x() - outGeom.x()) / outGeom.width(),
+                         (geom.y() - outGeom.y()) / outGeom.height(),
+                         geom.width() / outGeom.width(),
+                         geom.height() / outGeom.height());
+
+    if (layoutDirection() == LayoutDirection::Floating) {
+        setRelativeGeometry(relGeom);
+    } else if (layoutDirection() == LayoutDirection::Horizontal) {
+        setRelativeGeometry(QRectF(relGeom.x(), m_relativeGeometry.y(), relGeom.width(), m_relativeGeometry.height()));
+    } else if (layoutDirection() == LayoutDirection::Vertical) {
+        setRelativeGeometry(QRectF(m_relativeGeometry.x(), relGeom.y(), m_relativeGeometry.width(), relGeom.height()));
+    }
+}
+
 void TileData::setRelativeGeometry(const QRectF &geom)
 {
     if (m_relativeGeometry == geom) {
         return;
     }
 
-    m_relativeGeometry = geom;
+    QRectF finalGeom;
+
+    if (m_parentItem) {
+        finalGeom = geom.intersected(m_parentItem->relativeGeometry());
+        static bool siblingRecursion = false;
+
+        if (!siblingRecursion && m_parentItem->layoutDirection() == LayoutDirection::Horizontal) {
+            if (finalGeom.left() != m_relativeGeometry.left() && row() > 0) {
+                siblingRecursion = true;
+                auto *leftSibling = m_parentItem->childTiles()[row() - 1];
+                auto siblingGeom = leftSibling->relativeGeometry();
+                siblingGeom.setRight(finalGeom.left());
+                leftSibling->setRelativeGeometry(siblingGeom);
+                siblingRecursion = false;
+            }
+            if (finalGeom.right() != m_relativeGeometry.right() && row() >= 0 && row() < m_parentItem->childCount() - 1) {
+                siblingRecursion = true;
+                auto *rightSibling = m_parentItem->childTiles()[row() + 1];
+                auto siblingGeom = rightSibling->relativeGeometry();
+                siblingGeom.setLeft(finalGeom.right());
+                rightSibling->setRelativeGeometry(siblingGeom);
+                siblingRecursion = false;
+            }
+        } else if (!siblingRecursion && m_parentItem->layoutDirection() == LayoutDirection::Vertical) {
+            if (finalGeom.top() != m_relativeGeometry.top() && row() > 0) {
+                siblingRecursion = true;
+                auto *topSibling = m_parentItem->childTiles()[row() - 1];
+                auto siblingGeom = topSibling->relativeGeometry();
+                siblingGeom.setBottom(finalGeom.top());
+                topSibling->setRelativeGeometry(siblingGeom);
+                siblingRecursion = false;
+            }
+            if (finalGeom.bottom() != m_relativeGeometry.bottom() && row() >= 0 && row() < m_parentItem->childCount() - 1) {
+                siblingRecursion = true;
+                auto *bottomSibling = m_parentItem->childTiles()[row() + 1];
+                auto siblingGeom = bottomSibling->relativeGeometry();
+                siblingGeom.setTop(finalGeom.bottom());
+                bottomSibling->setRelativeGeometry(siblingGeom);
+                siblingRecursion = false;
+            }
+        }
+    } else {
+        finalGeom = geom;
+    }
+
+    m_relativeGeometry = finalGeom;
     for (auto t : m_childItems) {
         auto childGeom = t->relativeGeometry();
         childGeom = childGeom.intersected(geom);
@@ -86,16 +153,16 @@ QRectF TileData::relativeGeometry() const
 QRectF TileData::absoluteGeometry() const
 {
     const auto geom = m_tiling->output()->geometry(); // workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
-    return QRectF(qRound(geom.x() + m_relativeGeometry.x() * geom.width() + m_leftPadding),
-                  qRound(geom.y() + m_relativeGeometry.y() * geom.height() + m_topPadding),
-                  qRound(m_relativeGeometry.width() * geom.width() - m_leftPadding - m_rightPadding),
-                  qRound(m_relativeGeometry.height() * geom.height() - m_topPadding - m_bottomPadding));
+    return QRectF(qRound(geom.x() + m_relativeGeometry.x() * geom.width()),
+                  qRound(geom.y() + m_relativeGeometry.y() * geom.height()),
+                  qRound(m_relativeGeometry.width() * geom.width()),
+                  qRound(m_relativeGeometry.height() * geom.height()));
 }
 
 QRectF TileData::workspaceGeometry() const
 {
     const auto geom = absoluteGeometry();
-    return geom.intersected(workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop()));
+    return geom.intersected(workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop())) - QMarginsF(m_leftPadding, m_topPadding, m_rightPadding, m_bottomPadding);
 }
 
 void TileData::setlayoutDirection(TileData::LayoutDirection dir)
@@ -142,6 +209,20 @@ int TileData::bottomPadding() const
 
 void TileData::resizeInLayout(qreal delta)
 {
+    if (!m_parentItem || layoutDirection() == LayoutDirection::Floating) {
+        return;
+    }
+    const auto outGeom = m_tiling->output()->geometry();
+
+    if (layoutDirection() == LayoutDirection::Horizontal) {
+        qreal relativeDelta = delta / outGeom.width();
+        setRelativeGeometry(QRectF(m_relativeGeometry.x() + relativeDelta, m_relativeGeometry.y(), m_relativeGeometry.width() - relativeDelta, m_relativeGeometry.height()));
+    } else if (layoutDirection() == LayoutDirection::Vertical) {
+        qreal relativeDelta = delta / outGeom.height();
+        setRelativeGeometry(QRectF(m_relativeGeometry.x(), m_relativeGeometry.y() + relativeDelta, m_relativeGeometry.width(), m_relativeGeometry.height() - relativeDelta));
+    }
+
+    return;
     if (!m_parentItem || layoutDirection() == LayoutDirection::Floating) {
         return;
     }

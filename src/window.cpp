@@ -1687,7 +1687,7 @@ void Window::finishInteractiveMoveResize(bool cancel)
         setQuickTileMode(electricBorderMode());
         setElectricBorderMaximizing(false);
     } else if (wasMove && (input()->keyboardModifiers() & Qt::ShiftModifier)) {
-        outline()->hide();
+        workspace()->outline()->hide();
         setQuickTileMode(QuickTileFlag::CustomZone);
     }
     setElectricBorderMode(QuickTileMode(QuickTileFlag::None));
@@ -1801,13 +1801,13 @@ void Window::handleInteractiveMoveResize(const QPointF &local, const QPointF &gl
         if (input()->keyboardModifiers() & Qt::ShiftModifier && output()->customTiling()->tileGeometries().count() > 1) {
             const auto &r = quickTileGeometry(QuickTileFlag::CustomZone, Cursors::self()->mouse()->pos());
             if (r.isEmpty()) {
-                outline()->hide();
+                workspace()->outline()->hide();
             } else {
-                outline()->show(r.toRect(), moveResizeGeometry().toRect());
+                workspace()->outline()->show(r.toRect(), moveResizeGeometry().toRect());
             }
         } else if (!m_electricMaximizing) {
             //FIXME
-            outline()->hide();
+            workspace()->outline()->hide();
         }
     }
 }
@@ -2041,12 +2041,7 @@ void Window::handleInteractiveMoveResize(int x, int y, int x_root, int y_root)
         if (moveResizeGeometry().size() != previousMoveResizeGeom.size()) {
             update = true;
             if (m_tile) {
-                // TODO: need tile->setAbsoluteGeometry
-                if (m_tile->layoutDirection() == TileData::LayoutDirection::Horizontal) {
-                    m_tile->resizeInLayout(previousMoveResizeGeom.width() - moveResizeGeometry().width());
-                } else if (m_tile->layoutDirection() == TileData::LayoutDirection::Vertical) {
-                    m_tile->resizeInLayout(previousMoveResizeGeom.height() - moveResizeGeometry().height());
-                }
+                m_tile->setGeometryFromWindow(moveResizeGeometry());
             }
         }
     } else if (isInteractiveMove()) {

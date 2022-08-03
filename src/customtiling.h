@@ -48,6 +48,8 @@ public:
     explicit TileData(CustomTiling *m_tiling, TileData *parentItem = nullptr);
     ~TileData();
 
+    void setGeometryFromWindow(const QRectF &geom);
+    void setGeometryFromAbsolute(const QRectF &geom);
     void setRelativeGeometry(const QRectF &geom);
     QRectF relativeGeometry() const;
     QRectF absoluteGeometry() const;
