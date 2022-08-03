@@ -69,7 +69,7 @@ void TileData::setGeometryFromAbsolute(const QRectF &geom)
                          geom.width() / outGeom.width(),
                          geom.height() / outGeom.height());
 
-    if (layoutDirection() == LayoutDirection::Floating) {
+    if (1 || layoutDirection() == LayoutDirection::Floating) {
         setRelativeGeometry(relGeom);
     } else if (layoutDirection() == LayoutDirection::Horizontal) {
         setRelativeGeometry(QRectF(relGeom.x(), m_relativeGeometry.y(), relGeom.width(), m_relativeGeometry.height()));
@@ -84,10 +84,31 @@ void TileData::setRelativeGeometry(const QRectF &geom)
         return;
     }
 
-    QRectF finalGeom;
+    QRectF finalGeom = geom.intersected(QRectF(0, 0, 1, 1));
 
-    if (m_parentItem) {
-        finalGeom = geom.intersected(m_parentItem->relativeGeometry());
+    // If no parent item we are the root, if no parent->parent we are either the root linear or the root floating layout, directly child of root
+    if (m_parentItem && m_parentItem->parentItem()) {
+
+        if ((m_parentItem->layoutDirection() == LayoutDirection::Horizontal || row() == 0 || row() == m_parentItem->childCount() - 1) && (finalGeom.top() != m_relativeGeometry.top() || finalGeom.bottom() != m_relativeGeometry.bottom())) {
+            auto parentGeom = m_parentItem->relativeGeometry();
+            parentGeom.setTop(qMin(parentGeom.top(), finalGeom.top()));
+            parentGeom.setBottom(qMax(parentGeom.bottom(), finalGeom.bottom()));
+            m_parentItem->setRelativeGeometry(parentGeom);
+        }
+
+        if ((m_parentItem->layoutDirection() == LayoutDirection::Vertical || row() == 0 || row() == m_parentItem->childCount() - 1) && (finalGeom.left() != m_relativeGeometry.left() || finalGeom.right() != m_relativeGeometry.right())) {
+            auto parentGeom = m_parentItem->relativeGeometry();
+            if (m_parentItem->layoutDirection() == LayoutDirection::Vertical || row() == 0) {
+                parentGeom.setLeft(finalGeom.left());
+            }
+            if (m_parentItem->layoutDirection() == LayoutDirection::Vertical || row() == m_parentItem->childCount() - 1) {
+                parentGeom.setRight(finalGeom.right());
+            }
+            m_parentItem->setRelativeGeometry(parentGeom);
+        }
+
+        finalGeom = finalGeom.intersected(m_parentItem->relativeGeometry());
+
         static bool siblingRecursion = false;
 
         if (!siblingRecursion && m_parentItem->layoutDirection() == LayoutDirection::Horizontal) {
@@ -126,10 +147,12 @@ void TileData::setRelativeGeometry(const QRectF &geom)
             }
         }
     } else {
-        finalGeom = geom;
+        // Root is always as big as the output
+        finalGeom = QRectF(0, 0, 1, 1);
     }
 
     m_relativeGeometry = finalGeom;
+    // Resize all the children to fit in new size
     for (auto t : m_childItems) {
         auto childGeom = t->relativeGeometry();
         childGeom = childGeom.intersected(geom);
