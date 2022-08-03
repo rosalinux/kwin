@@ -258,7 +258,7 @@ void ApplicationX11::performStartup()
 
     createAtoms();
 
-    TabletModeManager::create(this);
+    createTabletModeManager();
 }
 
 bool ApplicationX11::notify(QObject *o, QEvent *e)
