@@ -54,7 +54,7 @@ var morphingEffect = {
                 delete window.moveAnimation;
             }
             if (window.fadeAnimation) {
-           //     delete window.fadeAnimation;
+                delete window.fadeAnimation;
             }
 
             return;
