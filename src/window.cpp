@@ -3733,7 +3733,7 @@ QRectF Window::quickTileGeometry(QuickTileMode mode, const QPointF &pos) const
     if (mode & QuickTileFlag::CustomZone) {
         TileData *tile = output()->customTiling()->bestTileForPosition(pos);
         if (tile) {
-            return tile->workspaceGeometry();
+            return tile->windowGeometry();
         } else {
             return QRectF();
         }
@@ -3930,7 +3930,7 @@ void Window::setTile(TileData *tile)
 {
     if (m_tile == tile) {
         if (tile) {
-            moveResize(tile->workspaceGeometry());
+            moveResize(tile->windowGeometry());
         }
         return;
     }
@@ -3945,11 +3945,11 @@ void Window::setTile(TileData *tile)
         return;
     }
 
-    moveResize(tile->workspaceGeometry());
+    moveResize(tile->windowGeometry());
 
     connect(tile, &TileData::absoluteGeometryChanged, this, [this]() {
         if (!isInteractiveMoveResize()) {
-            moveResize(m_tile->workspaceGeometry());
+            moveResize(m_tile->windowGeometry());
         }
     });
 

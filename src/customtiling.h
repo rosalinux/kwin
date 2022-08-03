@@ -33,6 +33,7 @@ class KWIN_EXPORT TileData : public QObject
     Q_PROPERTY(QRectF relativeGeometry READ relativeGeometry NOTIFY relativeGeometryChanged)
     Q_PROPERTY(QRectF absoluteGeometry READ absoluteGeometry NOTIFY absoluteGeometryChanged)
     Q_PROPERTY(KWin::TileData::LayoutDirection layoutDirection READ layoutDirection CONSTANT)
+    Q_PROPERTY(int positionInLayout READ row NOTIFY rowChanged)
     Q_PROPERTY(QList<TileData *> tiles READ childTiles NOTIFY childTilesChanged)
     Q_PROPERTY(bool isLayout READ isLayout NOTIFY isLayoutChanged)
     Q_PROPERTY(bool canBeRemoved READ canBeRemoved CONSTANT)
@@ -51,9 +52,21 @@ public:
     void setGeometryFromWindow(const QRectF &geom);
     void setGeometryFromAbsolute(const QRectF &geom);
     void setRelativeGeometry(const QRectF &geom);
+
+    /**
+     * Geometry of the tile in units between 0 and 1 relative to the screen geometry
+     */
     QRectF relativeGeometry() const;
+
+    /**
+     * Geometry of the tile in absolute coordinates
+     */
     QRectF absoluteGeometry() const;
-    QRectF workspaceGeometry() const;
+
+    /**
+     * Absolute geometry minus the padding and reserved areas such as panels
+     */
+    QRectF windowGeometry() const;
 
     void setlayoutDirection(TileData::LayoutDirection dir);
     // Own direction
@@ -72,7 +85,7 @@ public:
 
     QList<TileData *> childTiles() const;
 
-    Q_INVOKABLE void resizeInLayout(qreal delta);
+    Q_INVOKABLE void resizeByPixels(qreal delta, Qt::Edge edge);
     Q_INVOKABLE void split(KWin::TileData::LayoutDirection newDirection);
     Q_INVOKABLE void remove();
 
@@ -91,6 +104,7 @@ public:
 Q_SIGNALS:
     void relativeGeometryChanged(const QRectF &relativeGeometry);
     void absoluteGeometryChanged();
+    void rowChanged(int row);
     void isLayoutChanged(bool isLayout);
     void childTilesChanged();
 

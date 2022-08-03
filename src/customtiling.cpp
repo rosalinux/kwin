@@ -69,13 +69,7 @@ void TileData::setGeometryFromAbsolute(const QRectF &geom)
                          geom.width() / outGeom.width(),
                          geom.height() / outGeom.height());
 
-    if (1 || layoutDirection() == LayoutDirection::Floating) {
-        setRelativeGeometry(relGeom);
-    } else if (layoutDirection() == LayoutDirection::Horizontal) {
-        setRelativeGeometry(QRectF(relGeom.x(), m_relativeGeometry.y(), relGeom.width(), m_relativeGeometry.height()));
-    } else if (layoutDirection() == LayoutDirection::Vertical) {
-        setRelativeGeometry(QRectF(m_relativeGeometry.x(), relGeom.y(), m_relativeGeometry.width(), relGeom.height()));
-    }
+    setRelativeGeometry(relGeom);
 }
 
 void TileData::setRelativeGeometry(const QRectF &geom)
@@ -182,7 +176,7 @@ QRectF TileData::absoluteGeometry() const
                   qRound(m_relativeGeometry.height() * geom.height()));
 }
 
-QRectF TileData::workspaceGeometry() const
+QRectF TileData::windowGeometry() const
 {
     const auto geom = absoluteGeometry();
     return geom.intersected(workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop())) - QMarginsF(m_leftPadding, m_topPadding, m_rightPadding, m_bottomPadding);
@@ -230,53 +224,38 @@ int TileData::bottomPadding() const
     return m_bottomPadding;
 }
 
-void TileData::resizeInLayout(qreal delta)
+void TileData::resizeByPixels(qreal delta, Qt::Edge edge)
 {
-    if (!m_parentItem || layoutDirection() == LayoutDirection::Floating) {
+    if (!m_parentItem || !m_parentItem->parentItem()) {
         return;
     }
+
     const auto outGeom = m_tiling->output()->geometry();
+    auto newGeom = m_relativeGeometry;
 
-    if (layoutDirection() == LayoutDirection::Horizontal) {
+    switch (edge) {
+    case Qt::LeftEdge: {
         qreal relativeDelta = delta / outGeom.width();
-        setRelativeGeometry(QRectF(m_relativeGeometry.x() + relativeDelta, m_relativeGeometry.y(), m_relativeGeometry.width() - relativeDelta, m_relativeGeometry.height()));
-    } else if (layoutDirection() == LayoutDirection::Vertical) {
+        newGeom.setLeft(newGeom.left() + relativeDelta);
+        break;
+    }
+    case Qt::TopEdge: {
         qreal relativeDelta = delta / outGeom.height();
-        setRelativeGeometry(QRectF(m_relativeGeometry.x(), m_relativeGeometry.y() + relativeDelta, m_relativeGeometry.width(), m_relativeGeometry.height() - relativeDelta));
+        newGeom.setTop(newGeom.top() + relativeDelta);
+        break;
     }
-
-    return;
-    if (!m_parentItem || layoutDirection() == LayoutDirection::Floating) {
-        return;
+    case Qt::RightEdge: {
+        qreal relativeDelta = delta / outGeom.width();
+        newGeom.setRight(newGeom.right() + relativeDelta);
+        break;
     }
-
-    int index = row();
-
-    if (index < 1) {
-        // TODO: use resizeGravity instead?
-        if (index == 0 && m_parentItem->m_childItems.count() > 1) {
-            m_parentItem->m_childItems[index + 1]->resizeInLayout(-delta);
-        }
-        return;
+    case Qt::BottomEdge: {
+        qreal relativeDelta = delta / outGeom.height();
+        newGeom.setBottom(newGeom.bottom() + relativeDelta);
+        break;
     }
-
-    const auto areaGeom = workspace()->clientArea(MaximizeArea, m_tiling->output(), VirtualDesktopManager::self()->currentDesktop());
-
-    auto geom = m_relativeGeometry;
-    auto otherGeom = m_parentItem->m_childItems[index - 1]->relativeGeometry();
-
-    if (layoutDirection() == LayoutDirection::Horizontal) {
-        qreal relativeDelta = delta / areaGeom.width();
-        geom.setLeft(geom.left() + relativeDelta);
-        otherGeom.setRight(otherGeom.right() + relativeDelta);
-    } else {
-        qreal relativeDelta = delta / areaGeom.height();
-        geom.setTop(geom.top() + relativeDelta);
-        otherGeom.setBottom(otherGeom.bottom() + relativeDelta);
     }
-
-    setRelativeGeometry(geom);
-    m_parentItem->m_childItems[index - 1]->setRelativeGeometry(otherGeom);
+    setRelativeGeometry(newGeom);
 }
 
 void TileData::split(KWin::TileData::LayoutDirection newDirection)
@@ -351,9 +330,15 @@ void TileData::appendChild(TileData *item)
 void TileData::removeChild(TileData *child)
 {
     const bool wasEmpty = m_childItems.isEmpty();
+    const int idx = m_childItems.indexOf(child);
     m_childItems.removeAll(child);
     if (m_childItems.isEmpty() && !wasEmpty) {
         Q_EMIT isLayoutChanged(false);
+    }
+    if (idx > -1) {
+        for (int i = idx; i < m_childItems.count(); ++i) {
+            Q_EMIT m_childItems[i]->rowChanged(i);
+        }
     }
 }
 
