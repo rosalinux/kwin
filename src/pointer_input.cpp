@@ -762,29 +762,34 @@ QPointF PointerInputRedirection::applyPointerConfinement(const QPointF &pos) con
     if (!s) {
         return pos;
     }
-    auto cf = s->confinedPointer();
-    if (!cf) {
-        return pos;
-    }
-    if (!cf->isConfined()) {
+
+    QRegion confinementRegion;
+    if (focus()->rules()->checkConfinePointer(false)) {
+        confinementRegion = focus()->inputShape().translated(QPointF(focus()->pos() + focus()->clientPos()).toPoint());
+    } else if (auto cf = s->confinedPointer(); cf && cf->isConfined()) {
+        confinementRegion = getConstraintRegion(focus(), cf);
+    } else {
         return pos;
     }
 
-    const QRegion confinementRegion = getConstraintRegion(focus(), cf);
     if (confinementRegion.contains(pos.toPoint())) {
+        qDebug() << "in";
         return pos;
     }
     QPointF p = pos;
     // allow either x or y to pass
     p = QPointF(m_pos.x(), pos.y());
     if (confinementRegion.contains(p.toPoint())) {
+        qDebug() << "fix x";
         return p;
     }
     p = QPointF(pos.x(), m_pos.y());
     if (confinementRegion.contains(p.toPoint())) {
+        qDebug() << "fix y";
         return p;
     }
 
+    qDebug() << "not in";
     return m_pos;
 }
 
