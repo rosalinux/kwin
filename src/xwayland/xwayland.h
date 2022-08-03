@@ -28,7 +28,7 @@ class XrandrEventFilter;
 class XwaylandLauncher;
 class DataBridge;
 
-class KWIN_EXPORT Xwayland : public XwaylandInterface
+class KWIN_EXPORT Xwayland : public QObject, public XwaylandInterface
 {
     Q_OBJECT
 
