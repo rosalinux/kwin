@@ -159,7 +159,7 @@ void Xwayland::handleXwaylandFinished()
     // events will be dispatched before blocking; otherwise we will simply hang...
     uninstallSocketNotifier();
 
-    DataBridge::destroy();
+    m_dataBridge.reset();
     m_selectionOwner.reset();
 
     destroyX11Connection();
@@ -176,11 +176,11 @@ void Xwayland::handleXwaylandReady()
 
     // create selection owner for WM_S0 - magic X display number expected by XWayland
     m_selectionOwner.reset(new KSelectionOwner("WM_S0", kwinApp()->x11Connection(), kwinApp()->x11RootWindow()));
-    connect(m_selectionOwner.data(), &KSelectionOwner::lostOwnership,
+    connect(m_selectionOwner.get(), &KSelectionOwner::lostOwnership,
             this, &Xwayland::handleSelectionLostOwnership);
-    connect(m_selectionOwner.data(), &KSelectionOwner::claimedOwnership,
+    connect(m_selectionOwner.get(), &KSelectionOwner::claimedOwnership,
             this, &Xwayland::handleSelectionClaimedOwnership);
-    connect(m_selectionOwner.data(), &KSelectionOwner::failedToClaimOwnership,
+    connect(m_selectionOwner.get(), &KSelectionOwner::failedToClaimOwnership,
             this, &Xwayland::handleSelectionFailedToClaimOwnership);
     m_selectionOwner->claim(true);
 
@@ -189,7 +189,7 @@ void Xwayland::handleXwaylandReady()
         Xcb::defineCursor(kwinApp()->x11RootWindow(), mouseCursor->x11Cursor(Qt::ArrowCursor));
     }
 
-    DataBridge::create(this);
+    m_dataBridge = std::make_unique<DataBridge>();
 
     auto env = m_app->processStartupEnvironment();
     env.insert(QStringLiteral("DISPLAY"), m_launcher->displayName());
@@ -296,20 +296,20 @@ void Xwayland::destroyX11Connection()
 
 DragEventReply Xwayland::dragMoveFilter(Window *target, const QPoint &pos)
 {
-    DataBridge *bridge = DataBridge::self();
-    if (!bridge) {
+    if (m_dataBridge) {
+        return m_dataBridge->dragMoveFilter(target, pos);
+    } else {
         return DragEventReply::Wayland;
     }
-    return bridge->dragMoveFilter(target, pos);
 }
 
 KWaylandServer::AbstractDropHandler *Xwayland::xwlDropHandler()
 {
-    DataBridge *bridge = DataBridge::self();
-    if (bridge) {
-        return bridge->dnd()->dropHandler();
+    if (m_dataBridge) {
+        return m_dataBridge->dnd()->dropHandler();
+    } else {
+        return nullptr;
     }
-    return nullptr;
 }
 
 } // namespace Xwl

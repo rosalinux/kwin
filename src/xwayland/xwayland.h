@@ -12,6 +12,8 @@
 
 #include "xwayland_interface.h"
 
+#include <memory>
+
 class KSelectionOwner;
 class QSocketNotifier;
 
@@ -24,6 +26,7 @@ namespace Xwl
 {
 class XrandrEventFilter;
 class XwaylandLauncher;
+class DataBridge;
 
 class KWIN_EXPORT Xwayland : public XwaylandInterface
 {
@@ -73,7 +76,8 @@ private:
     QSocketNotifier *m_socketNotifier = nullptr;
 
     Application *m_app;
-    QScopedPointer<KSelectionOwner> m_selectionOwner;
+    std::unique_ptr<KSelectionOwner> m_selectionOwner;
+    std::unique_ptr<DataBridge> m_dataBridge;
 
     XrandrEventFilter *m_xrandrEventsFilter = nullptr;
     XwaylandLauncher *m_launcher;
