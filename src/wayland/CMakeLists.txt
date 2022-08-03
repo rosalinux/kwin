@@ -175,6 +175,10 @@ ecm_add_qtwayland_server_protocol_kde(WaylandProtocols_xml
     PROTOCOL ${WaylandProtocols_DATADIR}/staging/drm-lease/drm-lease-v1.xml
     BASENAME drm-lease-v1
 )
+ecm_add_qtwayland_server_protocol_kde(WaylandProtocols_xml
+    PROTOCOL ${WaylandProtocols_DATADIR}/unstable/xwayland-keyboard-grab/xwayland-keyboard-grab-unstable-v1.xml
+    BASENAME xwayland-keyboard-grab-unstable-v1
+)
 
 target_sources(kwin PRIVATE
     abstract_data_source.cpp
@@ -247,6 +251,7 @@ target_sources(kwin PRIVATE
     xdgforeign_v2_interface.cpp
     xdgoutput_v1_interface.cpp
     xdgshell_interface.cpp
+    xwaylandkeyboardgrab_v1_interface.cpp
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
