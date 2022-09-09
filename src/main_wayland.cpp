@@ -267,6 +267,7 @@ void ApplicationWayland::startSession()
 
 static const QString s_waylandPlugin = QStringLiteral("KWinWaylandWaylandBackend");
 static const QString s_x11Plugin = QStringLiteral("KWinWaylandX11Backend");
+static const QString s_fbdevPlugin = QStringLiteral("KWinWaylandFbdevBackend");
 static const QString s_drmPlugin = QStringLiteral("KWinWaylandDrmBackend");
 static const QString s_virtualPlugin = QStringLiteral("KWinWaylandVirtualBackend");
 
@@ -278,7 +279,12 @@ static QString automaticBackendSelection()
     if (qEnvironmentVariableIsSet("DISPLAY")) {
         return s_x11Plugin;
     }
-    return s_drmPlugin;
+    // Only default to drm when there's dri drivers. This way fbdev will be
+    // used when running using nomodeset
+    if (QFileInfo::exists("/dev/dri")) {
+        return s_drmPlugin;
+    }
+    return s_fbdevPlugin;
 }
 
 } // namespace
@@ -334,6 +340,7 @@ int main(int argc, char *argv[])
     const bool hasX11Option = hasPlugin(KWin::s_x11Plugin);
     const bool hasVirtualOption = hasPlugin(KWin::s_virtualPlugin);
     const bool hasWaylandOption = hasPlugin(KWin::s_waylandPlugin);
+    const bool hasFramebufferOption = hasPlugin(KWin::s_fbdevPlugin);
     const bool hasDrmOption = hasPlugin(KWin::s_drmPlugin);
 
     QCommandLineOption xwaylandOption(QStringLiteral("xwayland"),
@@ -341,6 +348,11 @@ int main(int argc, char *argv[])
     QCommandLineOption waylandSocketOption(QStringList{QStringLiteral("s"), QStringLiteral("socket")},
                                            i18n("Name of the Wayland socket to listen on. If not set \"wayland-0\" is used."),
                                            QStringLiteral("socket"));
+    QCommandLineOption framebufferOption(QStringLiteral("framebuffer"),
+                                         i18n("Render to framebuffer."));
+    QCommandLineOption framebufferDeviceOption(QStringLiteral("fb-device"),
+                                               i18n("The framebuffer device to render to."),
+                                               QStringLiteral("fbdev"));
     QCommandLineOption x11DisplayOption(QStringLiteral("x11-display"),
                                         i18n("The X11 Display to use in windowed mode on platform X11."),
                                         QStringLiteral("display"));
@@ -401,6 +413,10 @@ int main(int argc, char *argv[])
     }
     if (hasWaylandOption) {
         parser.addOption(waylandDisplayOption);
+    }
+    if (hasFramebufferOption) {
+        parser.addOption(framebufferOption);
+        parser.addOption(framebufferDeviceOption);
     }
     if (hasVirtualOption) {
         parser.addOption(virtualFbOption);
@@ -530,6 +546,10 @@ int main(int argc, char *argv[])
         pluginName = KWin::s_waylandPlugin;
     }
 
+    if (hasFramebufferOption && parser.isSet(framebufferOption)) {
+        pluginName = KWin::s_fbdevPlugin;
+        deviceIdentifier = parser.value(framebufferDeviceOption).toUtf8();
+    }
     if (hasVirtualOption && parser.isSet(virtualFbOption)) {
         pluginName = KWin::s_virtualPlugin;
     }
